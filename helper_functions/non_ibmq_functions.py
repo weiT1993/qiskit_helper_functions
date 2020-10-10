@@ -1,15 +1,12 @@
 import os
 import pickle
 import math
-from datetime import datetime
-import subprocess
-from qiskit import IBMQ, QuantumCircuit
-from qiskit.providers.aer.noise import NoiseModel
-from qiskit.transpiler import CouplingMap
+from qiskit import QuantumCircuit, Aer, execute
 from qiskit.circuit.classicalregister import ClassicalRegister
 import qiskit.circuit.library as library
 
 from qcg.generators import gen_supremacy, gen_hwea, gen_BV, gen_qft, gen_sycamore, gen_adder, gen_grover
+from helper_functions.conversions import dict_to_array
 
 def read_dict(filename):
     if os.path.isfile(filename):
@@ -25,18 +22,6 @@ def read_dict(filename):
         file_content = {}
     return file_content
 
-def load_IBMQ(token,hub,group,project):
-    token = token
-    # token = '796046b1d3210183f406ae0849fec01e86e761dc661cfab17ba19d70ff2dbe140fc2515a0c5a88e66052122a8c0681b95ef5e3031deeb4e9284310c1c4958b56'
-    if len(IBMQ.stored_account()) == 0:
-        IBMQ.save_account(token)
-        IBMQ.load_account()
-    elif IBMQ.active_account() == None:
-        IBMQ.load_account()
-    provider = IBMQ.get_provider(hub=hub, group=group, project=project)
-    # provider = IBMQ.get_provider(hub='ibm-q-ornl', group='ornl', project='phy147')
-    return provider
-
 def factor_int(n):
     nsqrt = math.ceil(math.sqrt(n))
     val = nsqrt
@@ -47,48 +32,12 @@ def factor_int(n):
         else:
             val -= 1
 
-def get_device_info(device_name,fields):
-    today = datetime.date(datetime.now())
-    dirname = './devices/%s'%today
-    filename = '%s/%s.pckl'%(dirname,device_name)
-    device_info = read_dict(filename=filename)
-    if len(device_info)==0:
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
-        else:
-            subprocess.run(['rm','-r',dirname])
-            os.makedirs(dirname)
-        provider = load_IBMQ()
-        for x in provider.backends():
-            print(x)
-            if 'qasm' not in str(x):
-                device = provider.get_backend(str(x))
-                properties = device.properties()
-                num_qubits = len(properties.qubits)
-                print('Download device_info for %d-qubit %s'%(num_qubits,x))
-                device = provider.get_backend(device_name)
-                properties = device.properties()
-                coupling_map = CouplingMap(device.configuration().coupling_map)
-                noise_model = NoiseModel.from_backend(properties)
-                basis_gates = noise_model.basis_gates
-                device_info = {'properties':properties,
-                'coupling_map':coupling_map,
-                'noise_model':noise_model,
-                'basis_gates':basis_gates}
-                pickle.dump(device_info, open('%s/%s.pckl'%(dirname,str(x)),'wb'))
-            print('-'*50)
-        device_info = read_dict(filename=filename)
-    for field in device_info:
-        if field not in fields:
-            del device_info[field]
-    return device_info
-
-def apply_measurement(circ):
-    c = ClassicalRegister(len(circ.qubits), 'c')
-    meas = QuantumCircuit(circ.qregs[0], c)
-    meas.barrier(circ.qubits)
-    meas.measure(circ.qubits,c)
-    qc = circ+meas
+def apply_measurement(circuit):
+    c = ClassicalRegister(len(circuit.qubits), 'c')
+    meas = QuantumCircuit(circuit.qregs[0], c)
+    meas.barrier(circuit.qubits)
+    meas.measure(circuit.qubits,c)
+    qc = circuit+meas
     return qc
 
 def generate_circ(full_circ_size,circuit_type):
@@ -135,3 +84,27 @@ def find_process_jobs(jobs,rank,num_workers):
         jobs_stop = jobs_start + (count - 1) + 1
     process_jobs = list(jobs[jobs_start:jobs_stop])
     return process_jobs
+
+def evaluate_circ(circuit,backend):
+    if backend=='statevector_simulator':
+        backend = Aer.get_backend('statevector_simulator')
+        job = execute(circuit, backend=backend, optimization_level=0)
+        result = job.result()
+        outputstate = result.get_statevector(circuit)
+        outputstate = [np.absolute(x)**2 for x in outputstate]
+        outputstate = np.array(outputstate)
+        return outputstate
+    elif backend == 'noiseless_qasm_simulator':
+        backend_options = {'max_memory_mb': 2**30*16/1024**2}
+        num_shots = max(1024,2**circuit.num_qubits)
+        backend = Aer.get_backend('qasm_simulator')
+        qc = apply_measurement(circuit=circuit)
+
+        noiseless_qasm_result = execute(qc, backend, shots=num_shots,backend_options=backend_options).result()
+        
+        noiseless_counts = noiseless_qasm_result.get_counts(0)
+        assert sum(noiseless_counts.values())==num_shots
+        noiseless_counts = dict_to_array(distribution_dict=noiseless_counts,force_prob=True)
+        return noiseless_counts
+    else:
+        raise Exception('Backend %s illegal'%backend)
