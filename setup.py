@@ -6,7 +6,7 @@ with open('README.md', 'r') as fh:
 setuptools.setup(
     name='helper_functions_weiT1993',
     version='0.0.1',
-    description='The funniest joke in the world',
+    description='Quantum Helper Functions',
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/weiT1993/helper_functions.git',
