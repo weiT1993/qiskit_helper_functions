@@ -15,6 +15,8 @@ from helper_functions.non_ibmq_functions import apply_measurement
 from helper_functions.ibmq_functions import get_device_info
 from helper_functions.conversions import dict_to_array, memory_to_dict
 
+# FIXME: still need to update the codes in Scheduler
+
 class ScheduleItem:
     def __init__(self,max_experiments,max_shots):
         self.max_experiments = max_experiments

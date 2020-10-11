@@ -50,10 +50,10 @@ def generate_circ(full_circ_size,circuit_type):
 
     i,j = factor_int(full_circ_size)
     if circuit_type == 'supremacy_linear':
-        full_circ = gen_supremacy(1,full_circ_size,8)
+        full_circ = gen_supremacy(1,full_circ_size,8,regname='q')
     elif circuit_type == 'supremacy':
         if abs(i-j)<=2:
-            full_circ = gen_supremacy(i,j,8)
+            full_circ = gen_supremacy(i,j,8,regname='q')
         else:
             full_circ = QuantumCircuit()
     elif circuit_type == 'hwea':
@@ -69,6 +69,11 @@ def generate_circ(full_circ_size,circuit_type):
         full_circ = gen_sycamore(i,j,8)
     elif circuit_type == 'adder':
         full_circ = gen_adder(nbits=int((full_circ_size-2)/2),barriers=False)
+    elif circuit_type == 'grover':
+        if full_circ_size%2==1:
+            full_circ = gen_grover(width=int((full_circ_size+1)/2))
+        else:
+            full_circ = QuantumCircuit()
     else:
         raise Exception('Illegal circuit type:',circuit_type)
     return full_circ
