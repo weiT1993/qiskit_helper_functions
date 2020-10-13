@@ -7,6 +7,7 @@ from qiskit.visualization import plot_gate_map, plot_error_map
 from datetime import timedelta, datetime, timezone
 import time
 import subprocess
+import os
 
 from helper_functions.non_ibmq_functions import read_dict, apply_measurement
 from helper_functions.conversions import dict_to_array

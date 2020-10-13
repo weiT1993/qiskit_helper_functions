@@ -4,6 +4,7 @@ import math
 from qiskit import QuantumCircuit, Aer, execute
 from qiskit.circuit.classicalregister import ClassicalRegister
 import qiskit.circuit.library as library
+import numpy as np
 
 from qcg.generators import gen_supremacy, gen_hwea, gen_BV, gen_qft, gen_sycamore, gen_adder, gen_grover
 from helper_functions.conversions import dict_to_array
@@ -68,7 +69,10 @@ def generate_circ(full_circ_size,circuit_type):
     elif circuit_type == 'sycamore':
         full_circ = gen_sycamore(i,j,8)
     elif circuit_type == 'adder':
-        full_circ = gen_adder(nbits=int((full_circ_size-2)/2),barriers=False)
+        if full_circ_size%2==0:
+            full_circ = gen_adder(nbits=int((full_circ_size-2)/2),barriers=False,regname='q')
+        else:
+            full_circ = QuantumCircuit()
     elif circuit_type == 'grover':
         if full_circ_size%2==1:
             full_circ = gen_grover(width=int((full_circ_size+1)/2))
