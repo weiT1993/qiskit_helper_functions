@@ -1,13 +1,16 @@
 from qiskit.compiler import transpile, assemble
 from qiskit.providers.aer import noise
-from qiskit import IBMQ, Aer
+from qiskit import IBMQ, Aer, execute
 from qiskit.providers.jobstatus import JobStatus
+from qiskit.providers.aer.noise import NoiseModel
+from qiskit.transpiler import CouplingMap
 import argparse
 from qiskit.visualization import plot_gate_map, plot_error_map
 from datetime import timedelta, datetime, timezone
 import time
 import subprocess
 import os
+import pickle
 
 from helper_functions.non_ibmq_functions import read_dict, apply_measurement
 from helper_functions.conversions import dict_to_array
@@ -100,7 +103,7 @@ def check_jobs(token,hub,group,project,cancel_jobs):
 
 def noisy_sim_circ(circuit,token,hub,group,project,device_name):
     backend = Aer.get_backend('qasm_simulator')
-    qc = apply_measurement(circuit=circ)
+    qc = apply_measurement(circuit=circuit)
     num_shots = max(1024,2**circuit.num_qubits)
     backend_options = {'max_memory_mb': 2**30*16/1024**2}
 
