@@ -94,26 +94,44 @@ def find_process_jobs(jobs,rank,num_workers):
     process_jobs = list(jobs[jobs_start:jobs_stop])
     return process_jobs
 
-def evaluate_circ(circuit,backend):
+def evaluate_circ(circuit, backend, options=None):
     if backend=='statevector_simulator':
         backend = Aer.get_backend('statevector_simulator')
         job = execute(circuit, backend=backend, optimization_level=0)
         result = job.result()
-        outputstate = result.get_statevector(circuit)
-        outputstate = [np.absolute(x)**2 for x in outputstate]
-        outputstate = np.array(outputstate)
-        return outputstate
+        output_sv = result.get_statevector(circuit)
+        output_p = []
+        for x in output_sv:
+            amplitude = np.absolute(x)**2
+            if amplitude>1e-16:
+                output_p.append(amplitude)
+            else:
+                output_p.append(0)
+        output_p = np.array(output_p)
+        return output_p
     elif backend == 'noiseless_qasm_simulator':
         backend_options = {'max_memory_mb': 2**30*16/1024**2}
-        num_shots = max(1024,2**circuit.num_qubits)
+        if isinstance(options,dict) and 'num_shots' in options:
+            num_shots = options['num_shots']
+        else:
+            num_shots = max(1024,2**circuit.num_qubits)
         backend = Aer.get_backend('qasm_simulator')
         qc = apply_measurement(circuit=circuit)
 
-        noiseless_qasm_result = execute(qc, backend, shots=num_shots,backend_options=backend_options).result()
-        
-        noiseless_counts = noiseless_qasm_result.get_counts(0)
-        assert sum(noiseless_counts.values())==num_shots
-        noiseless_counts = dict_to_array(distribution_dict=noiseless_counts,force_prob=True)
-        return noiseless_counts
+        if isinstance(options,dict) and 'memory' in options:
+            memory = options['memory']
+        else:
+            memory = False
+        noiseless_qasm_result = execute(qc, backend, shots=num_shots, backend_options=backend_options, memory=memory).result()
+
+        if memory:
+            qasm_memory = noiseless_qasm_result.get_memory(0)
+            assert len(qasm_memory)==num_shots
+            return qasm_memory
+        else:
+            noiseless_counts = noiseless_qasm_result.get_counts(0)
+            assert sum(noiseless_counts.values())==num_shots
+            noiseless_counts = dict_to_array(distribution_dict=noiseless_counts,force_prob=True)
+            return noiseless_counts
     else:
         raise Exception('Backend %s illegal'%backend)
