@@ -28,8 +28,8 @@ def get_device_info(token,hub,group,project,device_name,fields):
     today = datetime.date(datetime.now())
     dirname = './devices/%s'%today
     filename = '%s/%s.pckl'%(dirname,device_name)
-    device_info = read_dict(filename=filename)
-    if len(device_info)==0:
+    _device_info = read_dict(filename=filename)
+    if len(_device_info)==0:
         if not os.path.exists(dirname):
             os.makedirs(dirname)
         else:
@@ -48,16 +48,21 @@ def get_device_info(token,hub,group,project,device_name,fields):
                 coupling_map = CouplingMap(device.configuration().coupling_map)
                 noise_model = NoiseModel.from_backend(properties)
                 basis_gates = noise_model.basis_gates
-                device_info = {'properties':properties,
+                _device_info = {'properties':properties,
                 'coupling_map':coupling_map,
                 'noise_model':noise_model,
                 'basis_gates':basis_gates}
-                pickle.dump(device_info, open('%s/%s.pckl'%(dirname,str(x)),'wb'))
+                pickle.dump(_device_info, open('%s/%s.pckl'%(dirname,str(x)),'wb'))
             print('-'*50)
-        device_info = read_dict(filename=filename)
-    for field in device_info:
-        if field not in fields:
-            del device_info[field]
+        _device_info = read_dict(filename=filename)
+    device_info = {}
+    for field in fields:
+        if field=='device':
+            provider = load_IBMQ(token=token,hub=hub,group=group,project=project)
+            device = provider.get_backend(device_name)
+            device_info[field] = device
+        else:
+            device_info[field] = _device_info[field]
     return device_info
 
 def check_jobs(token,hub,group,project,cancel_jobs):

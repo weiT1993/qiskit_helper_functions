@@ -125,7 +125,7 @@ def evaluate_circ(circuit, backend, options=None):
         noiseless_qasm_result = execute(qc, backend, shots=num_shots, backend_options=backend_options, memory=memory).result()
 
         if memory:
-            qasm_memory = noiseless_qasm_result.get_memory(0)
+            qasm_memory = np.array(noiseless_qasm_result.get_memory(0))
             assert len(qasm_memory)==num_shots
             return qasm_memory
         else:
