@@ -130,7 +130,7 @@ class Scheduler:
                 print('Submitting job {:d}/{:d} {} --> {:d} circuits, {:d} * {:d} shots'.format(idx+1,len(self.schedule),hw_job.job_id(),len(schedule_item.circ_list),len(job_circuits),schedule_item.shots),flush=True)
         self.jobs = jobs
 
-    def retrieve(self,force_prob,verbose=False):
+    def retrieve(self,force_prob,save_memory,verbose=False):
         if verbose:
             print('*'*20,'Retrieving jobs','*'*20)
         assert len(self.schedule) == len(self.jobs)
@@ -165,7 +165,8 @@ class Scheduler:
             mem_dict = memory_to_dict(memory=memory)
             hw_prob = dict_to_array(distribution_dict=mem_dict,force_prob=force_prob)
             circ_dict[key]['prob'] = copy.deepcopy(hw_prob)
-            circ_dict[key]['memory'] = copy.deepcopy(memory)
+            if save_memory:
+                circ_dict[key]['memory'] = copy.deepcopy(memory)
             # print('Key {} has {:d} qubit circuit, hw has {:d}/{:d} shots'.format(key,len(full_circ.qubits),sum(hw.values()),shots))
             # print('Expecting {:d} shots, got {:d} shots'.format(shots,sum(mem_dict.values())),flush=True)
             if len(full_circ.clbits)>0:
