@@ -4,6 +4,8 @@ import math
 from qiskit import QuantumCircuit, Aer, execute
 from qiskit.circuit.classicalregister import ClassicalRegister
 import qiskit.circuit.library as library
+from qiskit.converters import circuit_to_dag, dag_to_circuit
+from qiskit.dagcircuit.dagcircuit import DAGCircuit
 import numpy as np
 
 from qcg.generators import gen_supremacy, gen_hwea, gen_BV, gen_qft, gen_sycamore, gen_adder, gen_grover
@@ -135,3 +137,12 @@ def evaluate_circ(circuit, backend, options=None):
             return noiseless_counts
     else:
         raise Exception('Backend %s illegal'%backend)
+
+def circuit_stripping(circuit,gates_to_strip):
+    dag = circuit_to_dag(circuit)
+    stripped_dag = DAGCircuit()
+    [stripped_dag.add_qreg(x) for x in circuit.qregs]
+    for vertex in dag.topological_op_nodes():
+        if vertex.op.name not in gates_to_strip:
+            stripped_dag.apply_operation_back(op=vertex.op, qargs=vertex.qargs)
+    return dag_to_circuit(stripped_dag)
