@@ -61,8 +61,8 @@ class Scheduler:
             value = self.circ_dict[key]
             if 'circuit' not in value or 'shots' not in value:
                 raise Exception('Input circ_dict should have `circuit`, `shots` for key {}'.format(key))
-            elif value['circuit'].n_qubits > self.device_size:
-                raise Exception('Input `circuit` for key {} has {:d}-q ({:d}-q device)'.format(key,value['circuit'].n_qubits,self.device_size))
+            elif value['circuit'].num_qubits > self.device_size:
+                raise Exception('Input `circuit` for key {} has {:d}-q ({:d}-q device)'.format(key,value['circuit'].num_qubits,self.device_size))
 
     def get_schedule(self,device_max_shots,device_max_experiments):
         circ_dict = copy.deepcopy(self.circ_dict)
