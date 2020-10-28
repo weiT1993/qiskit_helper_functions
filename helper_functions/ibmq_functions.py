@@ -37,13 +37,12 @@ def get_device_info(token,hub,group,project,device_name,fields):
             os.makedirs(dirname)
         provider = load_IBMQ(token=token,hub=hub,group=group,project=project)
         for x in provider.backends():
-            print(x)
             if 'qasm' not in str(x):
                 device = provider.get_backend(str(x))
                 properties = device.properties()
                 num_qubits = len(properties.qubits)
                 print('Download device_info for %d-qubit %s'%(num_qubits,x))
-                device = provider.get_backend(device_name)
+                device = provider.get_backend(str(x))
                 properties = device.properties()
                 coupling_map = CouplingMap(device.configuration().coupling_map)
                 noise_model = NoiseModel.from_backend(properties)
