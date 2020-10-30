@@ -24,9 +24,8 @@ def load_IBMQ(token,hub,group,project):
     provider = IBMQ.get_provider(hub=hub, group=group, project=project)
     return provider
 
-def get_device_info(token,hub,group,project,device_name,fields):
-    today = datetime.date(datetime.now())
-    dirname = './devices/%s'%today
+def get_device_info(token,hub,group,project,device_name,fields,datetime):
+    dirname = './devices/%s'%datetime.date()
     filename = '%s/%s.pckl'%(dirname,device_name)
     _device_info = read_dict(filename=filename)
     if len(_device_info)==0:
@@ -39,11 +38,9 @@ def get_device_info(token,hub,group,project,device_name,fields):
         for x in provider.backends():
             if 'qasm' not in str(x):
                 device = provider.get_backend(str(x))
-                properties = device.properties()
+                properties = device.properties(datetime=datetime)
                 num_qubits = len(properties.qubits)
                 print('Download device_info for %d-qubit %s'%(num_qubits,x))
-                device = provider.get_backend(str(x))
-                properties = device.properties()
                 coupling_map = CouplingMap(device.configuration().coupling_map)
                 noise_model = NoiseModel.from_backend(properties)
                 basis_gates = noise_model.basis_gates
