@@ -42,14 +42,15 @@ class ScheduleItem:
         return shots_remaining
 
 class Scheduler:
-    def __init__(self,circ_dict,token,hub,group,project,device_name):
+    def __init__(self,circ_dict,token,hub,group,project,device_name,datetime):
         self.circ_dict = copy.deepcopy(circ_dict)
         self.token = token
         self.hub = hub
         self.group = group
         self.project = project
         self.device_name = device_name
-        device_info = get_device_info(token=self.token,hub=self.hub,group=self.group,project=self.project,device_name=self.device_name,fields=['device','properties'])
+        self.datetime = datetime
+        device_info = get_device_info(token=self.token,hub=self.hub,group=self.group,project=self.project,device_name=self.device_name,fields=['device','properties'],datetime=self.datetime)
         self.device_size = len(device_info['properties'].qubits)
         self.check_input()
         self.schedule = self.get_schedule(device_max_shots=device_info['device'].configuration().max_shots,
@@ -93,7 +94,7 @@ class Scheduler:
             print('*'*20,'Submitting jobs','*'*20,flush=True)
         jobs = []
         device_info = get_device_info(token=self.token,hub=self.hub,group=self.group,project=self.project,device_name=self.device_name,
-        fields=['device','properties','basis_gates','coupling_map','noise_model'])
+        fields=['device','properties','basis_gates','coupling_map','noise_model'],datetime=self.datetime)
         for idx, schedule_item in enumerate(self.schedule):
             # print('Submitting job %d/%d'%(idx+1,len(schedule)))
             # print('Has %d total circuits * %d shots, %d circ_list elements'%(schedule_item.total_circs,schedule_item.shots,len(schedule_item.circ_list)))
