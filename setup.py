@@ -4,12 +4,12 @@ with open('README.md', 'r') as fh:
     long_description = fh.read()
 
 setuptools.setup(
-    name='helper_functions_weiT1993',
+    name='qiskit_helper_functions',
     version='0.0.1',
     description='Quantum Helper Functions',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/weiT1993/helper_functions_weiT1993.git',
+    url='https://github.com/weiT1993/qiskit_helper_functions.git',
     packages=setuptools.find_packages(),
     author='weiT1993',
     author_email='tangwei1027@gmail.com',
