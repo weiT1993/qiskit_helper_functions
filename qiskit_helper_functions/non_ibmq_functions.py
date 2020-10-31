@@ -9,7 +9,7 @@ from qiskit.dagcircuit.dagcircuit import DAGCircuit
 import numpy as np
 
 from qcg.generators import gen_supremacy, gen_hwea, gen_BV, gen_qft, gen_sycamore, gen_adder, gen_grover
-from helper_functions.conversions import dict_to_array
+from qiskit_helper_functions.conversions import dict_to_array
 
 def read_dict(filename):
     if os.path.isfile(filename):

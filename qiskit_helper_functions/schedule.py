@@ -11,9 +11,9 @@ from qiskit.compiler import transpile, assemble
 from qiskit import Aer
 import random
 
-from helper_functions.non_ibmq_functions import apply_measurement
-from helper_functions.ibmq_functions import get_device_info
-from helper_functions.conversions import dict_to_array, memory_to_dict
+from qiskit_helper_functions.non_ibmq_functions import apply_measurement
+from qiskit_helper_functions.ibmq_functions import get_device_info
+from qiskit_helper_functions.conversions import dict_to_array, memory_to_dict
 
 # FIXME: still need to update the codes in Scheduler
 

@@ -12,8 +12,8 @@ import subprocess
 import os
 import pickle
 
-from helper_functions.non_ibmq_functions import read_dict, apply_measurement
-from helper_functions.conversions import dict_to_array
+from qiskit_helper_functions.non_ibmq_functions import read_dict, apply_measurement
+from qiskit_helper_functions.conversions import dict_to_array
 
 def load_IBMQ(token,hub,group,project):
     if len(IBMQ.stored_account()) == 0:
