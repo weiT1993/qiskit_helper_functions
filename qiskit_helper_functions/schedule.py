@@ -15,8 +15,6 @@ from qiskit_helper_functions.non_ibmq_functions import apply_measurement
 from qiskit_helper_functions.ibmq_functions import get_device_info
 from qiskit_helper_functions.conversions import dict_to_array, memory_to_dict
 
-# FIXME: still need to update the codes in Scheduler
-
 class ScheduleItem:
     def __init__(self,max_experiments,max_shots):
         self.max_experiments = max_experiments
@@ -89,7 +87,7 @@ class Scheduler:
             schedule.append(schedule_item)
         return schedule
 
-    def run(self,real_device,verbose=False):
+    def run(self,real_device,transpile,verbose=False):
         if verbose:
             print('*'*20,'Submitting jobs','*'*20,flush=True)
         jobs = []
@@ -104,13 +102,12 @@ class Scheduler:
                 circ = element['circ']
                 reps = element['reps']
                 # print('Key {}, {:d} qubit circuit * {:d} reps'.format(key,len(circ.qubits),reps))
-                
-                if len(circ.clbits)>0:
-                    # Assume circ was alredy mapped
-                    mapped_circuit = circ
-                else:
+
+                if transpile:
                     qc=apply_measurement(circuit=circ)
                     mapped_circuit = transpile(qc,backend=device_info['device'],layout_method='noise_adaptive')
+                else:
+                    mapped_circuit = circ
 
                 # print('scheduler:')
                 # print(mapped_circuit)
