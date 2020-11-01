@@ -4,12 +4,11 @@ Input:
 circ_dict (dict): circ (not transpiled), shots, evaluator_info (optional)
 """
 
-import math
-import copy
+import math, copy, random, pickle, os, subprocess
 import numpy as np
 from qiskit.compiler import transpile, assemble
 from qiskit import Aer
-import random
+from time import time
 
 from qiskit_helper_functions.non_ibmq_functions import apply_measurement
 from qiskit_helper_functions.ibmq_functions import get_device_info
@@ -87,7 +86,11 @@ class Scheduler:
             schedule.append(schedule_item)
         return schedule
 
-    def run(self,real_device,transpile,verbose=False):
+    def run(self,real_device,transpile,force_prob,save_memory,save_directory,verbose=False):
+        self.jobs = self._submit_jobs(real_device=real_device,transpile=transpile,verbose=verbose)
+        self._retrieve_jobs(force_prob=force_prob,save_memory=save_memory,save_directory=save_directory,verbose=verbose)
+
+    def _submit_jobs(self,real_device,transpile,verbose=False):
         if verbose:
             print('*'*20,'Submitting jobs','*'*20,flush=True)
         jobs = []
@@ -126,12 +129,15 @@ class Scheduler:
             jobs.append(hw_job)
             if verbose:
                 print('Submitting job {:d}/{:d} {} --> {:d} circuits, {:d} * {:d} shots'.format(idx+1,len(self.schedule),hw_job.job_id(),len(schedule_item.circ_list),len(job_circuits),schedule_item.shots),flush=True)
-        self.jobs = jobs
+        return jobs
 
-    def retrieve(self,force_prob,save_memory,verbose=False):
+    def _retrieve_jobs(self,force_prob,save_memory,save_directory,verbose=False):
         if verbose:
             print('*'*20,'Retrieving jobs','*'*20)
         assert len(self.schedule) == len(self.jobs)
+        if not os.path.isfile(save_directory):
+            subprocess.run(['rm','-rf',save_directory])
+        os.makedirs(save_directory)
         memories = {}
         for job_idx in range(len(self.jobs)):
             schedule_item = self.schedule[job_idx]
@@ -155,6 +161,9 @@ class Scheduler:
                     else:
                         memories[key] = experiment_hw_memory
                 start_idx = end_idx
+        process_begin = time()
+        counter = 0
+        log_frequency = int(len(self.circ_dict)/5) if len(self.circ_dict)>5 else 1
         for key in self.circ_dict:
             full_circ = self.circ_dict[key]['circuit']
             shots = self.circ_dict[key]['shots']
@@ -170,3 +179,9 @@ class Scheduler:
                 assert len(self.circ_dict[key]['prob']) == 2**len(full_circ.clbits)
             else:
                 assert len(self.circ_dict[key]['prob']) == 2**len(full_circ.qubits)
+            pickle.dump(self.circ_dict[key], open('%s/%s.pckl'%(save_directory,key),'wb'))
+            counter += 1
+            elapsed = time() - process_begin
+            eta = elapsed/counter*len(self.circ_dict)-elapsed
+            if verbose and counter%log_frequency==0:
+                print('Processed %d/%d circuits, elapsed = %.3e, ETA = %.3e'%(counter,len(self.circ_dict),elapsed,eta))
