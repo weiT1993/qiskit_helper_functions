@@ -41,7 +41,7 @@ class ScheduleItem:
 
 class Scheduler:
     def __init__(self,circ_dict,token,hub,group,project,device_name,datetime):
-        self.circ_dict = copy.deepcopy(circ_dict)
+        self.circ_dict = circ_dict
         self.token = token
         self.hub = hub
         self.group = group
@@ -132,7 +132,6 @@ class Scheduler:
         if verbose:
             print('*'*20,'Retrieving jobs','*'*20)
         assert len(self.schedule) == len(self.jobs)
-        circ_dict = copy.deepcopy(self.circ_dict)
         memories = {}
         for job_idx in range(len(self.jobs)):
             schedule_item = self.schedule[job_idx]
@@ -156,19 +155,18 @@ class Scheduler:
                     else:
                         memories[key] = experiment_hw_memory
                 start_idx = end_idx
-        for key in circ_dict:
-            full_circ = circ_dict[key]['circuit']
-            shots = circ_dict[key]['shots']
+        for key in self.circ_dict:
+            full_circ = self.circ_dict[key]['circuit']
+            shots = self.circ_dict[key]['shots']
             memory = memories[key][:shots]
             mem_dict = memory_to_dict(memory=memory)
             hw_prob = dict_to_array(distribution_dict=mem_dict,force_prob=force_prob)
-            circ_dict[key]['prob'] = copy.deepcopy(hw_prob)
+            self.circ_dict[key]['prob'] = copy.deepcopy(hw_prob)
             if save_memory:
-                circ_dict[key]['memory'] = copy.deepcopy(memory)
+                self.circ_dict[key]['memory'] = copy.deepcopy(memory)
             # print('Key {} has {:d} qubit circuit, hw has {:d}/{:d} shots'.format(key,len(full_circ.qubits),sum(hw.values()),shots))
             # print('Expecting {:d} shots, got {:d} shots'.format(shots,sum(mem_dict.values())),flush=True)
             if len(full_circ.clbits)>0:
-                assert len(circ_dict[key]['prob']) == 2**len(full_circ.clbits)
+                assert len(self.circ_dict[key]['prob']) == 2**len(full_circ.clbits)
             else:
-                assert len(circ_dict[key]['prob']) == 2**len(full_circ.qubits)
-        self.circ_dict = copy.deepcopy(circ_dict)
+                assert len(self.circ_dict[key]['prob']) == 2**len(full_circ.qubits)
