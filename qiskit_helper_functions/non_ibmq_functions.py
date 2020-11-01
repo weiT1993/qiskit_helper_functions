@@ -35,11 +35,10 @@ def factor_int(n):
         else:
             val -= 1
 
-def apply_measurement(circuit):
-    c = ClassicalRegister(len(circuit.qubits), 'c')
-    meas = QuantumCircuit(circuit.qregs[0], c)
-    meas.barrier(circuit.qubits)
-    meas.measure(circuit.qubits,c)
+def apply_measurement(circuit,qubits):
+    meas = QuantumCircuit(circuit.num_qubits, len(qubits))
+    meas.barrier(qubits)
+    meas.measure(qubits,meas.clbits)
     qc = circuit+meas
     return qc
 
