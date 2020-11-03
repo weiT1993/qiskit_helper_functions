@@ -4,7 +4,7 @@ Input:
 circ_dict (dict): circ (not transpiled), shots, evaluator_info (optional)
 """
 
-import math, copy, random, pickle, os, subprocess
+import math, copy, random, pickle
 import numpy as np
 from qiskit.compiler import transpile, assemble
 from qiskit import Aer
@@ -47,11 +47,12 @@ class Scheduler:
         self.project = project
         self.device_name = device_name
         self.datetime = datetime
-        device_info = get_device_info(token=self.token,hub=self.hub,group=self.group,project=self.project,device_name=self.device_name,fields=['device','properties'],datetime=self.datetime)
-        self.device_size = len(device_info['properties'].qubits)
+        self.device_info = get_device_info(token=self.token,hub=self.hub,group=self.group,project=self.project,device_name=self.device_name,
+        fields=['device','properties','basis_gates','coupling_map','noise_model'],datetime=self.datetime)
+        self.device_size = len(self.device_info['properties'].qubits)
         self.check_input()
-        self.schedule = self.get_schedule(device_max_shots=device_info['device'].configuration().max_shots,
-        device_max_experiments=device_info['device'].configuration().max_experiments)
+        self.schedule = self.get_schedule(device_max_shots=self.device_info['device'].configuration().max_shots,
+        device_max_experiments=self.device_info['device'].configuration().max_experiments)
 
     def check_input(self):
         assert isinstance(self.circ_dict,dict)
@@ -94,8 +95,6 @@ class Scheduler:
         if verbose:
             print('*'*20,'Submitting jobs','*'*20,flush=True)
         jobs = []
-        device_info = get_device_info(token=self.token,hub=self.hub,group=self.group,project=self.project,device_name=self.device_name,
-        fields=['device','properties','basis_gates','coupling_map','noise_model'],datetime=self.datetime)
         for idx, schedule_item in enumerate(self.schedule):
             # print('Submitting job %d/%d'%(idx+1,len(schedule)))
             # print('Has %d total circuits * %d shots, %d circ_list elements'%(schedule_item.total_circs,schedule_item.shots,len(schedule_item.circ_list)))
@@ -108,7 +107,7 @@ class Scheduler:
 
                 if transpile:
                     qc=apply_measurement(circuit=circ)
-                    mapped_circuit = transpile(qc,backend=device_info['device'],layout_method='noise_adaptive')
+                    mapped_circuit = transpile(qc,backend=self.device_info['device'],layout_method='noise_adaptive')
                 else:
                     mapped_circuit = circ
 
@@ -120,11 +119,11 @@ class Scheduler:
             assert len(job_circuits) == schedule_item.total_circs
             
             if real_device:
-                qobj = assemble(job_circuits, backend=device_info['device'], shots=schedule_item.shots,memory=True)
-                hw_job = device_info['device'].run(qobj)
+                qobj = assemble(job_circuits, backend=self.device_info['device'], shots=schedule_item.shots,memory=True)
+                hw_job = self.device_info['device'].run(qobj)
             else:
                 qobj = assemble(job_circuits, backend=Aer.get_backend('qasm_simulator'), shots=schedule_item.shots, memory=True)
-                # hw_job = Aer.get_backend('qasm_simulator').run(qobj,noise_model=device_info['noise_model])
+                # hw_job = Aer.get_backend('qasm_simulator').run(qobj,noise_model=self.device_info['noise_model])
                 hw_job = Aer.get_backend('qasm_simulator').run(qobj)
             jobs.append(hw_job)
             if verbose:
@@ -135,9 +134,6 @@ class Scheduler:
         if verbose:
             print('*'*20,'Retrieving jobs','*'*20)
         assert len(self.schedule) == len(self.jobs)
-        if not os.path.isfile(save_directory):
-            subprocess.run(['rm','-rf',save_directory])
-        os.makedirs(save_directory)
         memories = {}
         for job_idx in range(len(self.jobs)):
             schedule_item = self.schedule[job_idx]
