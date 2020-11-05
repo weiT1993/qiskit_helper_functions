@@ -1,4 +1,4 @@
-from qiskit.aqua.algorithms import Grover
+from qiskit.circuit.library import GroverOperator
 from qiskit.aqua.components import oracles
 from qiskit.converters import circuit_to_dag, dag_to_circuit
 from qiskit.compiler import transpile
@@ -17,31 +17,14 @@ from .BernsteinVazirani import bernstein_vazirani
 from .Arithmetic import ripple_carry_adder
 
 def gen_grover(width):
-    truthtable = '0'*(2**width-1)+'1'
-    oracle = oracles.TruthTableOracle(truthtable,optimization=True,mct_mode='basic')
-    grover = Grover(oracle,num_iterations=1,mct_mode='basic')
-    full_circuit = grover.construct_circuit(measurement=False)
-
-    dag = circuit_to_dag(full_circuit)
-    dag.remove_all_ops_named(opname='barrier')
-    full_circuit = dag_to_circuit(dag)
-    full_circuit = transpile(full_circuit,optimization_level=3)
+    oracle = QuantumCircuit(width,name='q')
+    oracle.z(width-1)
+    full_circuit = GroverOperator(oracle, insert_barriers=False, name='q')
+    full_circuit = dag_to_circuit(circuit_to_dag(full_circuit))
+    full_circuit.qregs[0].name = 'q'
     full_circuit = full_circuit.decompose()
-    # print(full_circuit.count_ops(),full_circuit.size(),full_circuit.n_qubits,full_circuit.depth())
-    dag = circuit_to_dag(full_circuit)
-    qreg_translation = {}
-    counter = 0
-    for qreg in full_circuit.qregs:
-        for qubit in range(qreg.size):
-            qreg_translation[(qreg.name,qubit)] = counter
-            counter+=1
-    clean_full_circuit = QuantumCircuit(full_circuit.n_qubits)
-    clean_dag = circuit_to_dag(clean_full_circuit)
-    for vertex in dag.topological_op_nodes():
-        if vertex.op.name!='barrier':
-            clean_dag.apply_operation_back(op=vertex.op, qargs=[clean_full_circuit.qubits[qreg_translation[(x.register.name,x.index)]] for x in vertex.qargs])
-    clean_full_circuit = dag_to_circuit(clean_dag)
-    return clean_full_circuit
+    full_circuit = transpile(full_circuit,optimization_level=3)
+    return full_circuit
 
 def gen_supremacy(height, width, depth, order=None, singlegates=True,
                   mirror=False, barriers=False, measure=False, regname=None):

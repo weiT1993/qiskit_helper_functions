@@ -70,17 +70,18 @@ def generate_circ(full_circ_size,circuit_type):
     elif circuit_type == 'sycamore':
         full_circ = gen_sycamore(i,j,8)
     elif circuit_type == 'adder':
-        if full_circ_size%2==0:
+        if full_circ_size%2==0 and full_circ_size>2:
             full_circ = gen_adder(nbits=int((full_circ_size-2)/2),barriers=False,regname='q')
         else:
             full_circ = QuantumCircuit()
     elif circuit_type == 'grover':
-        if full_circ_size%2==1:
-            full_circ = gen_grover(width=int((full_circ_size+1)/2))
+        if full_circ_size%2==0:
+            full_circ = gen_grover(width=full_circ_size)
         else:
             full_circ = QuantumCircuit()
     else:
         raise Exception('Illegal circuit type:',circuit_type)
+    assert full_circ.num_qubits==full_circ_size or full_circ.num_qubits==0
     return full_circ
 
 def find_process_jobs(jobs,rank,num_workers):
