@@ -87,14 +87,10 @@ class Scheduler:
             schedule.append(schedule_item)
         return schedule
 
-    def run(self,real_device,transpile,force_prob,save_memory,save_directory,verbose=False):
-        self.jobs = self._submit_jobs(real_device=real_device,transpile=transpile,verbose=verbose)
-        self._retrieve_jobs(force_prob=force_prob,save_memory=save_memory,save_directory=save_directory,verbose=verbose)
-
-    def _submit_jobs(self,real_device,transpile,verbose=False):
+    def submit_jobs(self,real_device,transpilation,verbose=False):
         if verbose:
             print('*'*20,'Submitting jobs','*'*20,flush=True)
-        jobs = []
+        self.jobs = []
         for idx, schedule_item in enumerate(self.schedule):
             # print('Submitting job %d/%d'%(idx+1,len(schedule)))
             # print('Has %d total circuits * %d shots, %d circ_list elements'%(schedule_item.total_circs,schedule_item.shots,len(schedule_item.circ_list)))
@@ -105,11 +101,13 @@ class Scheduler:
                 reps = element['reps']
                 # print('Key {}, {:d} qubit circuit * {:d} reps'.format(key,len(circ.qubits),reps))
 
-                if transpile:
-                    qc=apply_measurement(circuit=circ)
+                if transpilation:
+                    qc=apply_measurement(circuit=circ,qubits=circ.qubits)
                     mapped_circuit = transpile(qc,backend=self.device_info['device'],layout_method='noise_adaptive')
                 else:
                     mapped_circuit = circ
+                
+                self.circ_dict[key]['mapped_circuit'] = mapped_circuit
 
                 # print('scheduler:')
                 # print(mapped_circuit)
@@ -125,12 +123,11 @@ class Scheduler:
                 qobj = assemble(job_circuits, backend=Aer.get_backend('qasm_simulator'), shots=schedule_item.shots, memory=True)
                 # hw_job = Aer.get_backend('qasm_simulator').run(qobj,noise_model=self.device_info['noise_model])
                 hw_job = Aer.get_backend('qasm_simulator').run(qobj)
-            jobs.append(hw_job)
+            self.jobs.append(hw_job)
             if verbose:
                 print('Submitting job {:d}/{:d} {} --> {:d} circuits, {:d} * {:d} shots'.format(idx+1,len(self.schedule),hw_job.job_id(),len(schedule_item.circ_list),len(job_circuits),schedule_item.shots),flush=True)
-        return jobs
 
-    def _retrieve_jobs(self,force_prob,save_memory,save_directory,verbose=False):
+    def retrieve_jobs(self,force_prob,save_memory,save_directory,verbose=False):
         if verbose:
             print('*'*20,'Retrieving jobs','*'*20)
         assert len(self.schedule) == len(self.jobs)

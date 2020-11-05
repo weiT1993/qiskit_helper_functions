@@ -59,16 +59,16 @@ def generate_circ(full_circ_size,circuit_type):
         else:
             full_circ = QuantumCircuit()
     elif circuit_type == 'hwea':
-        full_circ = gen_hwea(i*j,1)
+        full_circ = gen_hwea(i*j,1,regname='q')
     elif circuit_type == 'bv':
-        full_circ = gen_BV(gen_secret(i*j),barriers=False)
+        full_circ = gen_BV(gen_secret(i*j),barriers=False,regname='q')
     elif circuit_type == 'qft':
         full_circ = library.QFT(num_qubits=full_circ_size,approximation_degree=0,do_swaps=False)
     elif circuit_type=='aqft':
         approximation_degree=int(math.log(full_circ_size,2)+2)
         full_circ = library.QFT(num_qubits=full_circ_size,approximation_degree=full_circ_size-approximation_degree,do_swaps=False)
     elif circuit_type == 'sycamore':
-        full_circ = gen_sycamore(i,j,8)
+        full_circ = gen_sycamore(i,j,8,regname='q')
     elif circuit_type == 'adder':
         if full_circ_size%2==0 and full_circ_size>2:
             full_circ = gen_adder(nbits=int((full_circ_size-2)/2),barriers=False,regname='q')
