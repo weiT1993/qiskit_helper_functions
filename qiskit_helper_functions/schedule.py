@@ -172,7 +172,8 @@ class Scheduler:
                 assert len(self.circ_dict[key]['prob']) == 2**len(full_circ.clbits)
             else:
                 assert len(self.circ_dict[key]['prob']) == 2**len(full_circ.qubits)
-            pickle.dump(self.circ_dict[key], open('%s/%s.pckl'%(save_directory,key),'wb'))
+            if save_directory is not None:
+                pickle.dump(self.circ_dict[key], open('%s/%s.pckl'%(save_directory,key),'wb'))
             counter += 1
             elapsed = time() - process_begin
             eta = elapsed/counter*len(self.circ_dict)-elapsed
