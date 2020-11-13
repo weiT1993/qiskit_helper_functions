@@ -1,18 +1,31 @@
 import numpy as np
 
 def chi2_distance(target,obs,normalize):
-    assert len(target)==len(obs)
     obs = np.absolute(obs)
     if normalize:
         obs = obs / sum(obs)
         assert abs(sum(obs)-1)<1e-5
-    distance = 0
-    for x,y in zip(target,obs):
-        if abs(x-y)<1e-16:
-            distance += 0
-        else:
-            distance += np.power(x-y,2)/(x+y)
-    # distance /= len(target)
+    if isinstance(target,np.array()):
+        assert len(target)==len(obs)
+        distance = 0
+        for t, o in zip(target,obs):
+            if abs(t-o)<1e-16:
+                distance += 0
+            else:
+                distance += np.power(t-o,2)/(t+o)
+    elif isinstance(target,dict):
+        distance = 0
+        for o_idx, o in enumerate(obs):
+            if o_idx in target:
+                t = target[o_idx]
+            else:
+                t = 0
+            if abs(t-o)<1e-16:
+                distance += 0
+            else:
+                distance += np.power(t-o,2)/(t+o)
+    else:
+        raise Exception('Illegal target type:',type(target))
     return distance
 
 def fidelity(target,obs):
