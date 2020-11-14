@@ -5,7 +5,7 @@ def chi2_distance(target,obs,normalize):
     if normalize:
         obs = obs / sum(obs)
         assert abs(sum(obs)-1)<1e-5
-    if isinstance(target,np.array()):
+    if isinstance(target,np.ndarray):
         assert len(target)==len(obs)
         distance = 0
         for t, o in zip(target,obs):
