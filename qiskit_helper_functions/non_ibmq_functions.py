@@ -84,9 +84,9 @@ def generate_circ(full_circ_size,circuit_type):
     assert full_circ.num_qubits==full_circ_size or full_circ.num_qubits==0
     return full_circ
 
-def find_process_jobs(jobs,rank,num_workers):
-    count = int(len(jobs)/num_workers)
-    remainder = len(jobs) % num_workers
+def find_process_jobs(jobs,rank,num_threads):
+    count = int(len(jobs)/num_threads)
+    remainder = len(jobs) % num_threads
     if rank<remainder:
         jobs_start = rank * (count + 1)
         jobs_stop = jobs_start + count + 1
