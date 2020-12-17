@@ -9,13 +9,15 @@ def chi2_distance(target,obs,normalize):
         assert len(target)==len(obs)
         distance = 0
         for t, o in zip(target,obs):
-            distance += np.power(t-o,2)/(t+o)
+            if abs(t-o)>1e-10:
+                distance += np.power(t-o,2)/(t+o)
     elif isinstance(target,dict):
         distance = 0
         for o_idx, o in enumerate(obs):
             if o_idx in target:
                 t = target[o_idx]
-                distance += np.power(t-o,2)/(t+o)
+                if abs(t-o)>1e-10:
+                    distance += np.power(t-o,2)/(t+o)
             else:
                 distance += o
     else:
