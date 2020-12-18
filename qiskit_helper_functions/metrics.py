@@ -24,6 +24,21 @@ def chi2_distance(target,obs,normalize):
         raise Exception('Illegal target type:',type(target))
     return distance
 
+def MSE(target,obs):
+    if isinstance(target,np.ndarray):
+        mse = (target-obs)**2
+        mse = np.mean(mse)
+    elif isinstance(target,dict):
+        mse = 0
+        for o_idx, o in enumerate(obs):
+            if o_idx in target:
+                t = target[o_idx]
+                mse += (t-o)**2
+            else:
+                mse += o**2
+        mse /= len(obs)
+    return mse
+
 def fidelity(target,obs):
     assert len(target)==len(obs)
     epsilon = 1e-20
