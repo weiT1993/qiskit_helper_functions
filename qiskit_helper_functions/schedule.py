@@ -87,96 +87,112 @@ class Scheduler:
             schedule.append(schedule_item)
         return schedule
 
-    def submit_jobs(self,real_device,transpilation,verbose=False):
-        if verbose:
-            print('*'*20,'Submitting jobs','*'*20,flush=True)
-        self.jobs = []
-        for idx, schedule_item in enumerate(self.schedule):
-            # print('Submitting job %d/%d'%(idx+1,len(schedule)))
-            # print('Has %d total circuits * %d shots, %d circ_list elements'%(schedule_item.total_circs,schedule_item.shots,len(schedule_item.circ_list)))
-            job_circuits = []
-            for element in schedule_item.circ_list:
-                key = element['key']
-                circ = element['circ']
-                reps = element['reps']
-                # print('Key {}, {:d} qubit circuit * {:d} reps'.format(key,len(circ.qubits),reps))
+    def submit_jobs(self,devices,transpilation,verbose):
+        # TODO: support multiple devices
+        '''
+        device: 'IBMQ' - IBMQ device, 'noiseless' - noiseless simulation, 'noisy' - noisy simulation
+        '''
+        self.devices = sorted(devices,key=lambda element:0 if element=='IBMQ' else (1 if element=='noiseless' else 2))
+        self.verbose = verbose
+        if self.verbose:
+            print('*'*20,'Submitting Jobs','*'*20,flush=True)
+        self.jobs = {}
+        for device in self.devices:
+            jobs = []
+            for idx, schedule_item in enumerate(self.schedule):
+                # print('Submitting job %d/%d'%(idx+1,len(schedule)))
+                # print('Has %d total circuits * %d shots, %d circ_list elements'%(schedule_item.total_circs,schedule_item.shots,len(schedule_item.circ_list)))
+                job_circuits = []
+                for element in schedule_item.circ_list:
+                    key = element['key']
+                    circ = element['circ']
+                    reps = element['reps']
+                    # print('Key {}, {:d} qubit circuit * {:d} reps'.format(key,len(circ.qubits),reps))
 
-                if transpilation:
-                    qc=apply_measurement(circuit=circ,qubits=circ.qubits)
-                    # mapped_circuit = transpile(qc,backend=self.device_info['device'],layout_method='noise_adaptive')
-                    mapped_circuit = transpile(qc,backend=self.device_info['device'],optimization_level=3)
-                else:
-                    mapped_circuit = circ
-                
-                self.circ_dict[key]['mapped_circuit'] = mapped_circuit
-
-                # print('scheduler:')
-                # print(mapped_circuit)
-                circs_to_add = [mapped_circuit]*reps
-                job_circuits += circs_to_add
-            
-            assert len(job_circuits) == schedule_item.total_circs
-            
-            if real_device:
-                qobj = assemble(job_circuits, backend=self.device_info['device'], shots=schedule_item.shots,memory=True)
-                hw_job = self.device_info['device'].run(qobj)
-            else:
-                qobj = assemble(job_circuits, backend=Aer.get_backend('qasm_simulator'), shots=schedule_item.shots, memory=True)
-                # hw_job = Aer.get_backend('qasm_simulator').run(qobj,noise_model=self.device_info['noise_model])
-                hw_job = Aer.get_backend('qasm_simulator').run(qobj)
-            self.jobs.append(hw_job)
-            if verbose:
-                print('Submitting job {:d}/{:d} {} --> {:d} circuits, {:d} * {:d} shots'.format(idx+1,len(self.schedule),hw_job.job_id(),len(schedule_item.circ_list),len(job_circuits),schedule_item.shots),flush=True)
-
-    def retrieve_jobs(self,force_prob,save_memory,save_directory,verbose=False):
-        if verbose:
-            print('*'*20,'Retrieving jobs','*'*20)
-        assert len(self.schedule) == len(self.jobs)
-        memories = {}
-        for job_idx in range(len(self.jobs)):
-            schedule_item = self.schedule[job_idx]
-            hw_job = self.jobs[job_idx]
-            if verbose:
-                print('Retrieving job {:d}/{:d} {} --> {:d} circuits, {:d} * {:d} shots'.format(
-                    job_idx+1,len(self.jobs),hw_job.job_id(),
-                    len(schedule_item.circ_list),schedule_item.total_circs,schedule_item.shots),flush=True)
-            hw_result = hw_job.result()
-            start_idx = 0
-            for element_ctr, element in enumerate(schedule_item.circ_list):
-                key = element['key']
-                circ = element['circ']
-                reps = element['reps']
-                end_idx = start_idx + reps
-                # print('{:d}: getting {:d}-{:d}/{:d} circuits, key {} : {:d} qubit'.format(element_ctr,start_idx,end_idx-1,schedule_item.total_circs-1,key,len(circ.qubits)),flush=True)
-                for result_idx in range(start_idx,end_idx):
-                    experiment_hw_memory = hw_result.get_memory(result_idx)
-                    if key in memories:
-                        memories[key] += experiment_hw_memory
+                    if transpilation:
+                        qc=apply_measurement(circuit=circ,qubits=circ.qubits)
+                        mapped_circuit = transpile(qc,backend=self.device_info['device'],optimization_level=3)
                     else:
-                        memories[key] = experiment_hw_memory
-                start_idx = end_idx
-        process_begin = time()
-        counter = 0
-        log_frequency = int(len(self.circ_dict)/5) if len(self.circ_dict)>5 else 1
-        for key in self.circ_dict:
-            full_circ = self.circ_dict[key]['circuit']
-            shots = self.circ_dict[key]['shots']
-            memory = memories[key][:shots]
-            mem_dict = memory_to_dict(memory=memory)
-            hw_prob = dict_to_array(distribution_dict=mem_dict,force_prob=force_prob)
-            self.circ_dict[key]['prob'] = copy.deepcopy(hw_prob)
-            if save_memory:
-                self.circ_dict[key]['memory'] = copy.deepcopy(memory)
-            # print('Key {} has {:d} qubit circuit, hw has {:d}/{:d} shots'.format(key,len(full_circ.qubits),sum(hw.values()),shots))
-            # print('Expecting {:d} shots, got {:d} shots'.format(shots,sum(mem_dict.values())),flush=True)
-            if len(full_circ.clbits)>0:
-                assert len(self.circ_dict[key]['prob']) == 2**len(full_circ.clbits)
-            else:
-                assert len(self.circ_dict[key]['prob']) == 2**len(full_circ.qubits)
-            if save_directory is not None:
-                pickle.dump(self.circ_dict[key], open('%s/%s.pckl'%(save_directory,key),'wb'))
-            counter += 1
-            elapsed = time() - process_begin
-            eta = elapsed/counter*len(self.circ_dict)-elapsed
-            if verbose and counter%log_frequency==0:
-                print('Processed %d/%d circuits, elapsed = %.3e, ETA = %.3e'%(counter,len(self.circ_dict),elapsed,eta))
+                        mapped_circuit = circ
+                    
+                    self.circ_dict[key]['mapped_circuit'] = mapped_circuit
+
+                    # print('scheduler:')
+                    # print(mapped_circuit)
+                    circs_to_add = [mapped_circuit]*reps
+                    job_circuits += circs_to_add
+                
+                assert len(job_circuits) == schedule_item.total_circs
+                
+                if device=='IBMQ':
+                    qobj = assemble(job_circuits, backend=self.device_info['device'], shots=schedule_item.shots,memory=True)
+                    hw_job = self.device_info['device'].run(qobj)
+                elif device=='noiseless':
+                    qobj = assemble(job_circuits, backend=Aer.get_backend('qasm_simulator'), shots=schedule_item.shots, memory=True)
+                    hw_job = Aer.get_backend('qasm_simulator').run(qobj)
+                elif device=='noisy':
+                    qobj = assemble(job_circuits, backend=Aer.get_backend('qasm_simulator'), shots=schedule_item.shots, memory=True)
+                    hw_job = Aer.get_backend('qasm_simulator').run(qobj,noise_model=self.device_info['noise_model'])
+                else:
+                    raise Exception('Illegal device choice, device: \'IBMQ\' - IBMQ device, \'noiseless\' - noiseless simulation, \'noisy\' - noisy simulation')
+                jobs.append(hw_job)
+                if self.verbose:
+                    print('Submitting {:s} job {:d}/{:d} {} --> {:d} circuits, {:d} * {:d} shots'.format(device,idx+1,len(self.schedule),hw_job.job_id(),len(schedule_item.circ_list),len(job_circuits),schedule_item.shots),flush=True)
+            self.jobs[device] = jobs
+
+    def retrieve_jobs(self,force_prob,save_memory,save_directory):
+        # TODO: support retrieving all devices
+        if self.verbose:
+            print('*'*20,'Retrieving jobs','*'*20)
+        for device in self.devices:
+            jobs = self.jobs[device]
+            assert len(self.schedule) == len(jobs)
+            memories = {}
+            for job_idx in range(len(jobs)):
+                schedule_item = self.schedule[job_idx]
+                hw_job = jobs[job_idx]
+                if self.verbose:
+                    print('Retrieving {:s} job {:d}/{:d} {} --> {:d} circuits, {:d} * {:d} shots'.format(
+                        device,job_idx+1,len(jobs),hw_job.job_id(),
+                        len(schedule_item.circ_list),schedule_item.total_circs,schedule_item.shots),flush=True)
+                hw_result = hw_job.result()
+                start_idx = 0
+                for element_ctr, element in enumerate(schedule_item.circ_list):
+                    key = element['key']
+                    circ = element['circ']
+                    reps = element['reps']
+                    end_idx = start_idx + reps
+                    # print('{:d}: getting {:d}-{:d}/{:d} circuits, key {} : {:d} qubit'.format(element_ctr,start_idx,end_idx-1,schedule_item.total_circs-1,key,len(circ.qubits)),flush=True)
+                    for result_idx in range(start_idx,end_idx):
+                        experiment_hw_memory = hw_result.get_memory(result_idx)
+                        if key in memories:
+                            memories[key] += experiment_hw_memory
+                        else:
+                            memories[key] = experiment_hw_memory
+                    start_idx = end_idx
+            
+            process_begin = time()
+            counter = 0
+            log_frequency = int(len(self.circ_dict)/5) if len(self.circ_dict)>5 else 1
+            for key in self.circ_dict:
+                full_circ = self.circ_dict[key]['circuit']
+                shots = self.circ_dict[key]['shots']
+                memory = memories[key][:shots]
+                mem_dict = memory_to_dict(memory=memory)
+                hw_prob = dict_to_array(distribution_dict=mem_dict,force_prob=force_prob)
+                self.circ_dict[key][device] = copy.deepcopy(hw_prob)
+                if save_memory:
+                    self.circ_dict[key]['memory'] = copy.deepcopy(memory)
+                # print('Key {} has {:d} qubit circuit, hw has {:d}/{:d} shots'.format(key,len(full_circ.qubits),sum(hw.values()),shots))
+                # print('Expecting {:d} shots, got {:d} shots'.format(shots,sum(mem_dict.values())),flush=True)
+                if len(full_circ.clbits)>0:
+                    assert len(self.circ_dict[key][device]) == 2**len(full_circ.clbits)
+                else:
+                    assert len(self.circ_dict[key][device]) == 2**len(full_circ.qubits)
+                if save_directory is not None:
+                    pickle.dump(self.circ_dict[key], open('%s/%s.pckl'%(save_directory,key),'wb'))
+                counter += 1
+                elapsed = time() - process_begin
+                eta = elapsed/counter*len(self.circ_dict)-elapsed
+                if self.verbose and counter%log_frequency==0:
+                    print('Processed %d/%d circuits, elapsed = %.3e, ETA = %.3e'%(counter,len(self.circ_dict),elapsed,eta))
