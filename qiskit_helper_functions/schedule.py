@@ -103,7 +103,8 @@ class Scheduler:
 
                 if transpilation:
                     qc=apply_measurement(circuit=circ,qubits=circ.qubits)
-                    mapped_circuit = transpile(qc,backend=self.device_info['device'],layout_method='noise_adaptive')
+                    # mapped_circuit = transpile(qc,backend=self.device_info['device'],layout_method='noise_adaptive')
+                    mapped_circuit = transpile(qc,backend=self.device_info['device'],optimization_level=3)
                 else:
                     mapped_circuit = circ
                 

@@ -37,6 +37,8 @@ def MSE(target,obs):
             else:
                 mse += o**2
         mse /= len(obs)
+    else:
+        raise Exception('target type : %s'%type(target))
     return mse
 
 def fidelity(target,obs):
