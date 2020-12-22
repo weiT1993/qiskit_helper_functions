@@ -88,7 +88,6 @@ class Scheduler:
         return schedule
 
     def submit_jobs(self,devices,transpilation,verbose):
-        # TODO: support multiple devices
         '''
         device: 'IBMQ' - IBMQ device, 'noiseless' - noiseless simulation, 'noisy' - noisy simulation
         '''
@@ -141,9 +140,8 @@ class Scheduler:
             self.jobs[device] = jobs
 
     def retrieve_jobs(self,force_prob,save_memory,save_directory):
-        # TODO: support retrieving all devices
         if self.verbose:
-            print('*'*20,'Retrieving jobs','*'*20)
+            print('*'*20,'Retrieving Jobs','*'*20)
         for device in self.devices:
             jobs = self.jobs[device]
             assert len(self.schedule) == len(jobs)
@@ -173,8 +171,9 @@ class Scheduler:
             
             process_begin = time()
             counter = 0
-            log_frequency = int(len(self.circ_dict)/5) if len(self.circ_dict)>5 else 1
+            log_counter = 0
             for key in self.circ_dict:
+                iteration_begin = time()
                 full_circ = self.circ_dict[key]['circuit']
                 shots = self.circ_dict[key]['shots']
                 memory = memories[key][:shots]
@@ -192,7 +191,9 @@ class Scheduler:
                 if save_directory is not None:
                     pickle.dump(self.circ_dict[key], open('%s/%s.pckl'%(save_directory,key),'wb'))
                 counter += 1
-                elapsed = time() - process_begin
-                eta = elapsed/counter*len(self.circ_dict)-elapsed
-                if self.verbose and counter%log_frequency==0:
-                    print('Processed %d/%d circuits, elapsed = %.3e, ETA = %.3e'%(counter,len(self.circ_dict),elapsed,eta))
+                log_counter += time()-iteration_begin
+                if log_counter>60 and self.verbose:
+                    elapsed = time() - process_begin
+                    eta = elapsed/counter*len(self.circ_dict)-elapsed
+                    print('Processed %d/%d circuits, elapsed = %.3e, ETA = %.3e'%(counter,len(self.circ_dict),elapsed,eta),flush=True)
+                    log_counter = 0
