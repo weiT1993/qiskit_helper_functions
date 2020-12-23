@@ -106,7 +106,6 @@ def noisy_sim_circ(circuit,token,hub,group,project,device_name):
     backend = Aer.get_backend('qasm_simulator')
     qc = apply_measurement(circuit=circuit)
     num_shots = max(1024,2**circuit.num_qubits)
-    backend_options = {'max_memory_mb': 2**30*16/1024**2}
 
     device_info = get_device_info(token=token,hub=hub,group=group,project=project,device_name=device_name,
     fields=['device','basis_gates','coupling_map','properties','noise_model'])
@@ -121,7 +120,7 @@ def noisy_sim_circ(circuit,token,hub,group,project,device_name):
 
     noisy_qasm_result = execute(experiments=mapped_circuit,
     backend=backend,noise_model=noise_model,
-    shots=num_shots,backend_options=backend_options).result()
+    shots=num_shots).result()
 
     noisy_counts = noisy_qasm_result.get_counts(0)
     assert sum(noisy_counts.values())==num_shots

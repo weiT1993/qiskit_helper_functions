@@ -112,7 +112,6 @@ def evaluate_circ(circuit, backend, options=None):
         output_p = np.array(output_p)
         return output_p
     elif backend == 'noiseless_qasm_simulator':
-        backend_options = {'max_memory_mb': 2**30*16/1024**2}
         if isinstance(options,dict) and 'num_shots' in options:
             num_shots = options['num_shots']
         else:
@@ -124,7 +123,7 @@ def evaluate_circ(circuit, backend, options=None):
             memory = options['memory']
         else:
             memory = False
-        noiseless_qasm_result = execute(qc, backend, shots=num_shots, backend_options=backend_options, memory=memory).result()
+        noiseless_qasm_result = execute(qc, backend, shots=num_shots, memory=memory).result()
 
         if memory:
             qasm_memory = np.array(noiseless_qasm_result.get_memory(0))
