@@ -11,7 +11,6 @@ from qiskit import Aer, execute
 from qiskit.providers.aer import QasmSimulator
 from time import time
 from datetime import datetime
-import multiprocessing as mp
 
 from qiskit_helper_functions.non_ibmq_functions import apply_measurement
 from qiskit_helper_functions.ibmq_functions import get_device_info
@@ -58,7 +57,7 @@ class Scheduler:
         self.group = group
         self.project = project
 
-    def submit_ibmq_jobs(self,device_names,transpilation):
+    def submit_ibmq_jobs(self,device_names,transpilation,real_device):
         self.device_names = device_names
         for device_name in device_names:
             if self.verbose:
@@ -96,9 +95,10 @@ class Scheduler:
                 assert len(job_circuits) == schedule_item.total_circs
                 
                 qobj = assemble(job_circuits, backend=device_info['device'], shots=schedule_item.shots,memory=True)
-                # NOTE: for debugging
-                ibmq_job = Aer.get_backend('qasm_simulator').run(qobj)
-                # ibmq_job = device_info['device'].run(qobj)
+                if real_device:
+                    ibmq_job = device_info['device'].run(qobj)
+                else:
+                    ibmq_job = Aer.get_backend('qasm_simulator').run(qobj)
                 jobs.append(ibmq_job)
                 if self.verbose:
                     print('Submitting job {:d}/{:d} {} --> {:d} distinct circuits, {:d} * {:d} shots'.format(
@@ -164,9 +164,12 @@ class Scheduler:
                     print('Processed %d/%d circuits, elapsed = %.3e, ETA = %.3e'%(counter,len(self.circ_dict),elapsed,eta),flush=True)
                     log_counter = 0
 
-    def run_simulation_jobs(self,device_name,transpilation):
+    def run_simulation_jobs(self,device_name):
         '''
         device_name: 'noiseless' - noiseless simulation, 'IBMQ_XXX' - noisy simulation with IBMQ device noise model
+
+        noiseless: run the circuits as is
+        IBMQ_XXX: transpile
         '''
         if self.verbose:
             print('*'*20,'Run %s Simulations'%device_name,'*'*20,flush=True)
@@ -175,31 +178,43 @@ class Scheduler:
         if 'ibmq' in device_name:
             today = datetime.now()
             device_info = get_device_info(token=self.token,hub=self.hub,group=self.group,project=self.project,device_name=device_name,
-            fields=['device','properties','noise_model'],datetime=today)
-            backend = device_info['device']
+            fields=['device','noise_model'],datetime=today)
             noise_model = device_info['noise_model']
-            simulator = QasmSimulator(noise_model=noise_model)
         elif device_name=='noiseless':
-            backend = None
             noise_model = None
-            simulator = QasmSimulator()
         else:
             raise NotImplementedError
 
-        data = []
+        simulation_begin = time()
+        log_counter = 0
+        counter = 0
         for key in self.circ_dict:
+            iteration_begin = time()
             value = self.circ_dict[key]
-            data_item = [key,value['circuit'],value['shots'],transpilation,backend,simulator,device_name]
-            data.append(data_item)
-        
-        random.shuffle(data) # Ensure a somewhat fair distribution of workloads
-        num_threads = mp.cpu_count()
-        chunksize = max(len(data)//num_threads//10,10)
-        
-        pool = mp.Pool(processes=num_threads)
-        # FIXME: need to debug
-        pool.starmap(self._simulate_one_circuit,data,chunksize=chunksize)
-        pool.close()
+            
+            if value['circuit'].num_clbits == 0:
+                qc = apply_measurement(circuit=value['circuit'],qubits=value['circuit'].qubits)
+            else:
+                qc = value['circuit']
+            
+            if 'ibmq' in device_name:
+                value['mapped_circuit'] = transpile(qc,backend=device_info['device'],optimization_level=3)
+            elif device_name=='noiseless':
+                value['mapped_circuit'] = qc
+            
+            simulation_result = execute(value['mapped_circuit'], Aer.get_backend('qasm_simulator'),noise_model=noise_model,shots=value['shots']).result()
+
+            counts = simulation_result.get_counts(0)
+            counts = dict_to_array(distribution_dict=counts,force_prob=True)
+            self.circ_dict[key]['%s|sim'%device_name] = counts
+
+            log_counter += time()-iteration_begin
+            elapsed = time() - simulation_begin
+            counter += 1
+            if log_counter>60 and self.verbose:
+                eta = elapsed/counter*len(self.circ_dict) - elapsed
+                print('Simulated %d/%d circuits, elapsed = %.3f, ETA = %.3f'%(counter,len(self.circ_dict),elapsed,eta))
+                log_counter = 0
 
     def _check_input(self,device_size):
         assert isinstance(self.circ_dict,dict)
@@ -231,17 +246,3 @@ class Scheduler:
         if schedule_item.total_circs>0:
             ibmq_schedule.append(schedule_item)
         return ibmq_schedule
-
-    def _simulate_one_circuit(self,key,circuit,num_shots,transpilation,backend,simulator,device_name):
-        print('Process :',mp.current_process(),'input :',type(backend),type(simulator))
-
-        if transpilation:
-            qc=apply_measurement(circuit=circuit,qubits=circuit.qubits)
-            mapped_circuit = transpile(qc,backend=backend,optimization_level=3)
-        else:
-            mapped_circuit = circuit
-
-        simulation_result = execute(mapped_circuit, simulator, shots=num_shots).result()
-        counts = simulation_result.get_counts(0)
-        counts = dict_to_array(distribution_dict=counts,force_prob=True)
-        self.circ_dict[key]['%s|sim'%device_name] = counts
