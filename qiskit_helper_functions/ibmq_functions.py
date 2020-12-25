@@ -41,7 +41,7 @@ def get_device_info(token,hub,group,project,device_name,fields,datetime):
                 properties = device.properties(datetime=datetime)
                 num_qubits = len(properties.qubits)
                 print('Download device_info for %d-qubit %s'%(num_qubits,x))
-                coupling_map = device.configuration().coupling_map
+                coupling_map = CouplingMap(device.configuration().coupling_map)
                 noise_model = NoiseModel.from_backend(device)
                 basis_gates = noise_model.basis_gates
                 _device_info = {'properties':properties,

@@ -81,11 +81,15 @@ class Scheduler:
                     reps = element['reps']
                     # print('Key {}, {:d} qubit circuit * {:d} reps'.format(key,len(circ.qubits),reps))
 
-                    if transpilation:
-                        qc=apply_measurement(circuit=circ,qubits=circ.qubits)
-                        mapped_circuit = transpile(qc,backend=device_info['device'],optimization_level=3)
+                    if circ.num_clbits == 0:
+                        qc = apply_measurement(circuit=circ,qubits=circ.qubits)
                     else:
-                        mapped_circuit = circ
+                        qc = circ
+
+                    if transpilation:
+                        mapped_circuit = transpile(qc,backend=device_info['device'])
+                    else:
+                        mapped_circuit = qc
                     
                     self.circ_dict[key]['%s_circuit'%device_name] = mapped_circuit
 
@@ -198,9 +202,10 @@ class Scheduler:
                 qc = value['circuit']
             
             if 'ibmq' in device_name:
-                value['mapped_circuit'] = transpile(qc,backend=device_info['device'],optimization_level=3)
+                mapped_circuit = transpile(qc,backend=device_info['device'])
             elif device_name=='noiseless':
-                value['mapped_circuit'] = qc
+                mapped_circuit = qc
+            self.circ_dict[key]['mapped_circuit'] = mapped_circuit
             
             simulation_result = execute(value['mapped_circuit'], Aer.get_backend('qasm_simulator'),noise_model=noise_model,shots=value['shots']).result()
 
@@ -211,7 +216,7 @@ class Scheduler:
             log_counter += time()-iteration_begin
             elapsed = time() - simulation_begin
             counter += 1
-            if log_counter>60 and self.verbose:
+            if log_counter>300 and self.verbose:
                 eta = elapsed/counter*len(self.circ_dict) - elapsed
                 print('Simulated %d/%d circuits, elapsed = %.3f, ETA = %.3f'%(counter,len(self.circ_dict),elapsed,eta))
                 log_counter = 0
