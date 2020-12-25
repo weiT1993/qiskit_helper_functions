@@ -6,7 +6,8 @@ from qiskit.providers.aer.noise import NoiseModel
 from qiskit.transpiler import CouplingMap
 import argparse
 from qiskit.visualization import plot_gate_map, plot_error_map
-from datetime import timedelta, datetime, timezone
+from datetime import timedelta, datetime
+from pytz import timezone
 import time
 import subprocess
 import os
@@ -64,7 +65,7 @@ def get_device_info(token,hub,group,project,device_name,fields,datetime):
 def check_jobs(token,hub,group,project,cancel_jobs):
     provider = load_IBMQ(token=token,hub=hub,group=group,project=project)
 
-    time_now = datetime.now()
+    time_now = datetime.now(timezone('EST'))
     delta = timedelta(days=0,seconds=0,microseconds=0,milliseconds=0,minutes=0,hours=12,weeks=0)
     time_delta = time_now - delta
 
@@ -92,7 +93,7 @@ def check_jobs(token,hub,group,project,cancel_jobs):
             print('ERROR:')
             for job in x.jobs(limit=5,status=JobStatus['ERROR'],start_datetime=time_delta):
                 print(job.creation_date(),job.status(),job.error_message(),job.job_id())
-            if cancel_jobs:
+            if cancel_jobs and len(jobs_to_cancel)>0:
                 for i in range(3):
                     print('Warning!!! Cancelling jobs! %d seconds count down'%(3-i))
                     time.sleep(1)
