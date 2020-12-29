@@ -62,5 +62,6 @@ def cross_entropy(target,obs):
         CE = 0
         for t_idx in target:
             t = target[t_idx]
-            CE -= -t*np.log(obs[t_idx])
+            o = obs[t_idx]
+            CE += -t*np.log(o)
         return CE
