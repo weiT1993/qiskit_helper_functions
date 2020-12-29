@@ -30,27 +30,31 @@ def MSE(target,obs):
         mse = np.mean(mse)
     elif isinstance(target,dict):
         mse = 0
-        for o_idx, o in enumerate(obs):
-            if o_idx in target:
-                t = target[o_idx]
-                mse += (t-o)**2
-            else:
-                mse += o**2
+        for t_idx in target:
+            t = target[t_idx]
+            o = obs[t_idx]
+            mse += (t-o)**2
         mse /= len(obs)
     else:
         raise Exception('target type : %s'%type(target))
     return mse
 
 def fidelity(target,obs):
-    assert len(target)==len(obs)
-    epsilon = 1e-20
-    obs = np.absolute(obs)
-    obs = obs / sum(obs)
-    # assert abs(sum(obs)-1)<1e-5
-    fidelity = 0
-    for t,o in zip(target,obs):
-        if t > 1e-16:
-            fidelity += o
+    if isinstance(target,np.ndarray):
+        assert len(target)==len(obs)
+        fidelity = 0
+        for t,o in zip(target,obs):
+            if t > 1e-16:
+                fidelity += o
+    elif isinstance(target,dict):
+        fidelity = 0
+        for t_idx in target:
+            t = target[t_idx]
+            o = obs[t_idx]
+            if t > 1e-16:
+                fidelity += o
+    else:
+        raise Exception('target type : %s'%type(target))
     return fidelity
 
 def cross_entropy(target,obs):
@@ -65,3 +69,5 @@ def cross_entropy(target,obs):
             o = obs[t_idx]
             CE += -t*np.log(o)
         return CE
+    else:
+        raise Exception('target type : %s'%type(target))
