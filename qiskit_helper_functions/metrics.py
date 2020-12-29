@@ -52,3 +52,15 @@ def fidelity(target,obs):
         if t > 1e-16:
             fidelity += o
     return fidelity
+
+def cross_entropy(target,obs):
+    obs = np.clip(obs,a_min=1e-16,a_max=None)
+    if isinstance(target,np.ndarray):
+        CE = np.sum(-target*np.log(obs))
+        return CE
+    elif isinstance(target,dict):
+        CE = 0
+        for t_idx in target:
+            t = target[t_idx]
+            CE -= -t*np.log(obs[t_idx])
+        return CE

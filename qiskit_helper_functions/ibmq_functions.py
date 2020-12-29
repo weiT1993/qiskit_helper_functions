@@ -102,28 +102,3 @@ def check_jobs(token,hub,group,project,cancel_jobs):
                     job.cancel()
                     print('cancelled')
             print('-'*100)
-
-def noisy_sim_circ(circuit,token,hub,group,project,device_name):
-    backend = Aer.get_backend('qasm_simulator')
-    qc = apply_measurement(circuit=circuit)
-    num_shots = max(1024,2**circuit.num_qubits)
-
-    device_info = get_device_info(token=token,hub=hub,group=group,project=project,device_name=device_name,
-    fields=['device','basis_gates','coupling_map','properties','noise_model'])
-
-    device = device_info['device']
-    basis_gates = device_info['basis_gates']
-    coupling_map = device_info['coupling_map']
-    properties = device_info['properties']
-    noise_model = device_info['noise_model']
-    
-    mapped_circuit = transpile(qc,backend=device,layout_method='noise_adaptive')
-
-    noisy_qasm_result = execute(experiments=mapped_circuit,
-    backend=backend,noise_model=noise_model,
-    shots=num_shots).result()
-
-    noisy_counts = noisy_qasm_result.get_counts(0)
-    assert sum(noisy_counts.values())==num_shots
-    noisy_counts = dict_to_array(distribution_dict=noisy_counts,force_prob=True)
-    return noisy_counts

@@ -117,13 +117,14 @@ def evaluate_circ(circuit, backend, options=None):
         else:
             num_shots = max(1024,2**circuit.num_qubits)
         backend = Aer.get_backend('qasm_simulator')
-        qc = apply_measurement(circuit=circuit)
 
         if isinstance(options,dict) and 'memory' in options:
             memory = options['memory']
         else:
             memory = False
-        noiseless_qasm_result = execute(qc, backend, shots=num_shots, memory=memory).result()
+        if circuit.num_clbits == 0:
+            circuit = apply_measurement(circuit=circuit,qubits=circuit.qubits)
+        noiseless_qasm_result = execute(circuit, backend, shots=num_shots, memory=memory).result()
 
         if memory:
             qasm_memory = np.array(noiseless_qasm_result.get_memory(0))
@@ -134,8 +135,19 @@ def evaluate_circ(circuit, backend, options=None):
             assert sum(noiseless_counts.values())==num_shots
             noiseless_counts = dict_to_array(distribution_dict=noiseless_counts,force_prob=True)
             return noiseless_counts
+    elif backend=='noisy_qasm_simulator':
+        noisy_qasm_result = execute(circuit, Aer.get_backend('qasm_simulator'),
+        coupling_map=options['coupling_map'],
+        basis_gates=options['basis_gates'],
+        noise_model=options['noise_model'],
+        shots=options['num_shots']).result()
+
+        noisy_counts = noisy_qasm_result.get_counts(0)
+        assert sum(noisy_counts.values())==options['num_shots']
+        noisy_counts = dict_to_array(distribution_dict=noisy_counts,force_prob=True)
+        return noisy_counts
     else:
-        raise Exception('Backend %s illegal'%backend)
+        raise NotImplementedError
 
 def circuit_stripping(circuit,gates_to_strip):
     dag = circuit_to_dag(circuit)
