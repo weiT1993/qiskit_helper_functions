@@ -58,16 +58,25 @@ def fidelity(target,obs):
     return fidelity
 
 def cross_entropy(target,obs):
-    obs = np.clip(obs,a_min=1e-16,a_max=None)
-    if isinstance(target,np.ndarray):
-        CE = np.sum(-target*np.log(obs))
-        return CE
-    elif isinstance(target,dict):
+    if isinstance(target,dict):
         CE = 0
         for t_idx in target:
             t = target[t_idx]
             o = obs[t_idx]
             CE += -t*np.log(o)
         return CE
+    elif isinstance(target,np.ndarray) and isinstance(obs,np.ndarray):
+        CE = np.sum(-target*np.log(obs))
+        return CE
+    elif isinstance(target,np.ndarray) and isinstance(obs,dict):
+        CE = 0
+        for o_idx in obs:
+            o = obs[o_idx]
+            t = target[o_idx]
+            CE += -t*np.log(o)
+        return CE
     else:
-        raise Exception('target type : %s'%type(target))
+        raise Exception('target type : %s, obs type : %s'%(type(target),type(obs)))
+
+def relative_entropy(target,obs):
+    return cross_entropy(target=target,obs=obs) - cross_entropy(target=target,obs=target)
