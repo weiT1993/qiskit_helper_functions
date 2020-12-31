@@ -63,9 +63,11 @@ def cross_entropy(target,obs):
         for t_idx in target:
             t = target[t_idx]
             o = obs[t_idx]
+            o = o if o>1e-16 else 1e-16
             CE += -t*np.log(o)
         return CE
     elif isinstance(target,np.ndarray) and isinstance(obs,np.ndarray):
+        obs = np.clip(obs,a_min=1e-16,a_max=None)
         CE = np.sum(-target*np.log(obs))
         return CE
     elif isinstance(target,np.ndarray) and isinstance(obs,dict):
@@ -73,6 +75,7 @@ def cross_entropy(target,obs):
         for o_idx in obs:
             o = obs[o_idx]
             t = target[o_idx]
+            o = o if o>1e-16 else 1e-16
             CE += -t*np.log(o)
         return CE
     else:
