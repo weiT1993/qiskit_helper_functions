@@ -48,6 +48,34 @@ def MSE(target,obs):
         raise Exception('target type : %s'%type(target))
     return mse
 
+def MPE(target,obs):
+    '''
+    Mean percentage error
+    abs(target-obs)/target
+    '''
+    if isinstance(target,dict):
+        mpe = 0
+        for t_idx in target:
+            t = target[t_idx]
+            o = obs[t_idx]
+            mpe += abs((t-o)/t)
+        mpe /= len(obs)
+    elif isinstance(target,np.ndarray) and isinstance(obs,np.ndarray):
+        target = target.reshape(-1,1)
+        obs = obs.reshape(-1,1)
+        mpe = np.abs((target-obs)/target)
+        mpe = np.mean(mpe)
+    elif isinstance(target,np.ndarray) and isinstance(obs,dict):
+        mpe = 0
+        for o_idx in obs:
+            o = obs[o_idx]
+            t = target[o_idx]
+            mpe += abs((t-o)/t)
+        mpe /= len(obs)
+    else:
+        raise Exception('target type : %s'%type(target))
+    return mpe
+
 def fidelity(target,obs):
     if isinstance(target,np.ndarray):
         assert len(target)==len(obs)
