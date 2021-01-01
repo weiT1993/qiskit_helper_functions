@@ -25,14 +25,23 @@ def chi2_distance(target,obs,normalize):
     return distance
 
 def MSE(target,obs):
-    if isinstance(target,np.ndarray):
-        mse = (target-obs)**2
-        mse = np.mean(mse)
-    elif isinstance(target,dict):
+    if isinstance(target,dict):
         mse = 0
         for t_idx in target:
             t = target[t_idx]
             o = obs[t_idx]
+            mse += (t-o)**2
+        mse /= len(obs)
+    elif isinstance(target,np.ndarray) and isinstance(obs,np.ndarray):
+        target = target.reshape(-1,1)
+        obs = obs.reshape(-1,1)
+        mse = (target-obs)**2
+        mse = np.mean(mse)
+    elif isinstance(target,np.ndarray) and isinstance(obs,dict):
+        mse = 0
+        for o_idx in obs:
+            o = obs[o_idx]
+            t = target[o_idx]
             mse += (t-o)**2
         mse /= len(obs)
     else:
