@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.linear_model import LinearRegression
 
 def chi2_distance(target,obs,normalize):
     obs = np.absolute(obs)
@@ -25,6 +26,9 @@ def chi2_distance(target,obs,normalize):
     return distance
 
 def MSE(target,obs):
+    '''
+    Mean Square Error
+    '''
     if isinstance(target,dict):
         mse = 0
         for t_idx in target:
@@ -48,33 +52,33 @@ def MSE(target,obs):
         raise Exception('target type : %s'%type(target))
     return mse
 
-def MPE(target,obs):
+def MAPE(target,obs):
     '''
-    Mean percentage error
+    Mean absolute percentage error
     abs(target-obs)/target
     '''
     if isinstance(target,dict):
-        mpe = 0
+        mape = 0
         for t_idx in target:
             t = target[t_idx]
             o = obs[t_idx]
-            mpe += abs((t-o)/t)
-        mpe /= len(obs)
+            mape += abs((t-o)/t)
+        mape /= len(obs)
     elif isinstance(target,np.ndarray) and isinstance(obs,np.ndarray):
         target = target.reshape(-1,1)
         obs = obs.reshape(-1,1)
-        mpe = np.abs((target-obs)/target)
-        mpe = np.mean(mpe)
+        mape = np.abs((target-obs)/target)
+        mape = np.mean(mape)
     elif isinstance(target,np.ndarray) and isinstance(obs,dict):
-        mpe = 0
+        mape = 0
         for o_idx in obs:
             o = obs[o_idx]
             t = target[o_idx]
-            mpe += abs((t-o)/t)
-        mpe /= len(obs)
+            mape += abs((t-o)/t)
+        mape /= len(obs)
     else:
         raise Exception('target type : %s'%type(target))
-    return mpe
+    return mape
 
 def fidelity(target,obs):
     if isinstance(target,np.ndarray):
@@ -120,3 +124,14 @@ def cross_entropy(target,obs):
 
 def relative_entropy(target,obs):
     return cross_entropy(target=target,obs=obs) - cross_entropy(target=target,obs=target)
+
+def correlation(target,obs):
+    '''
+    Measure the linear correlation between `target` and `obs`
+    '''
+    target = target.reshape(-1, 1)
+    obs = obs.reshape(-1, 1)
+    reg = LinearRegression()
+    reg.fit(X=obs,y=target)
+    score = reg.score(X=obs,y=target)
+    return score
