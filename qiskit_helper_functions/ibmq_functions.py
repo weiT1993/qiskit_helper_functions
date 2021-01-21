@@ -40,11 +40,11 @@ def get_device_info(token,hub,group,project,device_name,fields,datetime):
             if 'qasm' not in str(x):
                 device = provider.get_backend(str(x))
                 properties = device.properties(datetime=datetime)
-                num_qubits = len(properties.qubits)
+                num_qubits = device.configuration().n_qubits
                 print('Download device_info for %d-qubit %s'%(num_qubits,x))
                 coupling_map = CouplingMap(device.configuration().coupling_map)
                 noise_model = NoiseModel.from_backend(device)
-                basis_gates = noise_model.basis_gates
+                basis_gates = device.configuration().basis_gates
                 _device_info = {'properties':properties,
                 'coupling_map':coupling_map,
                 'noise_model':noise_model,
@@ -66,7 +66,7 @@ def check_jobs(token,hub,group,project,cancel_jobs):
     provider = load_IBMQ(token=token,hub=hub,group=group,project=project)
 
     time_now = datetime.now(timezone('EST'))
-    delta = timedelta(days=0,seconds=0,microseconds=0,milliseconds=0,minutes=0,hours=12,weeks=0)
+    delta = timedelta(days=1,seconds=0,microseconds=0,milliseconds=0,minutes=0,hours=0,weeks=0)
     time_delta = time_now - delta
 
     for x in provider.backends():
