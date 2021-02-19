@@ -30,27 +30,28 @@ def MSE(target,obs):
     Mean Square Error
     '''
     if isinstance(target,dict):
-        mse = 0
+        se = 0
         for t_idx in target:
             t = target[t_idx]
             o = obs[t_idx]
-            mse += (t-o)**2
-        mse /= len(obs)
+            se += (t-o)**2
+        mse = se/len(obs)
     elif isinstance(target,np.ndarray) and isinstance(obs,np.ndarray):
         target = target.reshape(-1,1)
         obs = obs.reshape(-1,1)
-        mse = (target-obs)**2
-        mse = np.mean(mse)
+        squared_diff = (target-obs)**2
+        se = np.sum(squared_diff)
+        mse = np.mean(squared_diff)
     elif isinstance(target,np.ndarray) and isinstance(obs,dict):
-        mse = 0
+        se = 0
         for o_idx in obs:
             o = obs[o_idx]
             t = target[o_idx]
-            mse += (t-o)**2
-        mse /= len(obs)
+            se += (t-o)**2
+        mse = se/len(obs)
     else:
         raise Exception('target type : %s'%type(target))
-    return mse
+    return mse, se
 
 def MAPE(target,obs):
     '''
