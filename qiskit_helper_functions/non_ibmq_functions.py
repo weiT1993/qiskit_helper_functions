@@ -1,9 +1,8 @@
-import os
-import pickle
-import math
+import math, random, pickle, os
 from qiskit import QuantumCircuit, Aer, execute
 from qiskit.circuit.classicalregister import ClassicalRegister
 import qiskit.circuit.library as library
+from qiskit.circuit.library import CXGate, XGate, RZGate, HGate
 from qiskit.converters import circuit_to_dag, dag_to_circuit
 from qiskit.dagcircuit.dagcircuit import DAGCircuit
 import numpy as np
@@ -79,6 +78,8 @@ def generate_circ(full_circ_size,circuit_type):
             full_circ = gen_grover(width=full_circ_size)
         else:
             full_circ = QuantumCircuit()
+    elif circuit_type == 'random':
+        full_circ = generate_random_circuit(num_qubits=full_circ_size,circuit_depth=20,density=0.5)
     else:
         raise Exception('Illegal circuit type:',circuit_type)
     assert full_circ.num_qubits==full_circ_size or full_circ.num_qubits==0
@@ -157,3 +158,34 @@ def circuit_stripping(circuit,gates_to_strip):
         if vertex.op.name not in gates_to_strip:
             stripped_dag.apply_operation_back(op=vertex.op, qargs=vertex.qargs)
     return dag_to_circuit(stripped_dag)
+
+def generate_random_circuit(num_qubits, circuit_depth, density):
+    circuit = QuantumCircuit(num_qubits,name='q')
+    max_gates_per_layer = int(num_qubits/2)
+    num_gates_per_layer = max(int(density*max_gates_per_layer),1)
+    # print('Generating %d-q random circuit, density = %d*%d.'%(
+    #     num_qubits,num_gates_per_layer,circuit_depth))
+    for depth in range(int(circuit_depth/2)):
+        qubit_candidates = list(range(num_qubits))
+        num_gates = 0
+        while len(qubit_candidates)>=2 and num_gates<num_gates_per_layer:
+            qubit_pair = np.random.choice(a=qubit_candidates,replace=False,size=2)
+            for qubit in qubit_pair:
+                del qubit_candidates[qubit_candidates.index(qubit)]
+            # Add a 2-qubit gate
+            qubit_pair = [circuit.qubits[qubit] for qubit in qubit_pair]
+            circuit.append(instruction=CXGate(),qargs=qubit_pair)
+            num_gates += 1
+        # Add some 1-qubit gates
+        for qubit in range(num_qubits):
+            single_qubit_gate = random.choice([HGate(), XGate(), RZGate(phi=random.uniform(0,np.pi*2))])
+            circuit.append(instruction=single_qubit_gate,qargs=[qubit])
+    circuit += circuit.inverse()
+
+    solution_state = np.random.choice(2**num_qubits)
+    bin_solution_state = bin(solution_state)[2:].zfill(num_qubits)
+    bin_solution_state = bin_solution_state[::-1]
+    for qubit_idx, digit in zip(range(num_qubits),bin_solution_state):
+        if digit=='1':
+            circuit.append(instruction=XGate(),qargs=[circuit.qubits[qubit_idx]])
+    return circuit
