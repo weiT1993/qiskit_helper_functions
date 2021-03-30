@@ -2,7 +2,7 @@ import math, random, pickle, os
 from qiskit import QuantumCircuit, Aer, execute
 from qiskit.circuit.classicalregister import ClassicalRegister
 import qiskit.circuit.library as library
-from qiskit.circuit.library import CXGate, XGate, RZGate, HGate
+from qiskit.circuit.library import CXGate, IGate, RZGate, XGate
 from qiskit.converters import circuit_to_dag, dag_to_circuit
 from qiskit.dagcircuit.dagcircuit import DAGCircuit
 import numpy as np
@@ -165,7 +165,7 @@ def generate_random_circuit(num_qubits, circuit_depth, density):
     num_gates_per_layer = max(int(density*max_gates_per_layer),1)
     # print('Generating %d-q random circuit, density = %d*%d.'%(
     #     num_qubits,num_gates_per_layer,circuit_depth))
-    for depth in range(int(circuit_depth/2)):
+    for depth in range(int(circuit_depth/4)):
         qubit_candidates = list(range(num_qubits))
         num_gates = 0
         while len(qubit_candidates)>=2 and num_gates<num_gates_per_layer:
@@ -178,7 +178,7 @@ def generate_random_circuit(num_qubits, circuit_depth, density):
             num_gates += 1
         # Add some 1-qubit gates
         for qubit in range(num_qubits):
-            single_qubit_gate = random.choice([HGate(), XGate(), RZGate(phi=random.uniform(0,np.pi*2))])
+            single_qubit_gate = random.choice([IGate(), RZGate(phi=random.uniform(0,np.pi*2)), XGate()])
             circuit.append(instruction=single_qubit_gate,qargs=[qubit])
     circuit += circuit.inverse()
 
