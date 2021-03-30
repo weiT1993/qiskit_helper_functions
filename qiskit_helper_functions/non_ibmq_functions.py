@@ -79,7 +79,7 @@ def generate_circ(full_circ_size,circuit_type):
         else:
             full_circ = QuantumCircuit()
     elif circuit_type == 'random':
-        full_circ = generate_random_circuit(num_qubits=full_circ_size,circuit_depth=20,density=0.5)
+        full_circ = generate_random_circuit(num_qubits=full_circ_size,circuit_depth=20,density=0.5,inverse=True)
     else:
         raise Exception('Illegal circuit type:',circuit_type)
     assert full_circ.num_qubits==full_circ_size or full_circ.num_qubits==0
@@ -159,13 +159,14 @@ def circuit_stripping(circuit,gates_to_strip):
             stripped_dag.apply_operation_back(op=vertex.op, qargs=vertex.qargs)
     return dag_to_circuit(stripped_dag)
 
-def generate_random_circuit(num_qubits, circuit_depth, density):
+def generate_random_circuit(num_qubits, circuit_depth, density, inverse):
     circuit = QuantumCircuit(num_qubits,name='q')
     max_gates_per_layer = int(num_qubits/2)
     num_gates_per_layer = max(int(density*max_gates_per_layer),1)
     # print('Generating %d-q random circuit, density = %d*%d.'%(
     #     num_qubits,num_gates_per_layer,circuit_depth))
-    for depth in range(int(circuit_depth/4)):
+    depth_of_random = int(circuit_depth/4) if inverse else int(circuit_depth/2)
+    for depth in range(depth_of_random):
         qubit_candidates = list(range(num_qubits))
         num_gates = 0
         while len(qubit_candidates)>=2 and num_gates<num_gates_per_layer:
@@ -180,12 +181,12 @@ def generate_random_circuit(num_qubits, circuit_depth, density):
         for qubit in range(num_qubits):
             single_qubit_gate = random.choice([IGate(), RZGate(phi=random.uniform(0,np.pi*2)), XGate()])
             circuit.append(instruction=single_qubit_gate,qargs=[qubit])
-    circuit += circuit.inverse()
-
-    solution_state = np.random.choice(2**num_qubits)
-    bin_solution_state = bin(solution_state)[2:].zfill(num_qubits)
-    bin_solution_state = bin_solution_state[::-1]
-    for qubit_idx, digit in zip(range(num_qubits),bin_solution_state):
-        if digit=='1':
-            circuit.append(instruction=XGate(),qargs=[circuit.qubits[qubit_idx]])
+    if inverse:
+        circuit += circuit.inverse()
+        solution_state = np.random.choice(2**num_qubits)
+        bin_solution_state = bin(solution_state)[2:].zfill(num_qubits)
+        bin_solution_state = bin_solution_state[::-1]
+        for qubit_idx, digit in zip(range(num_qubits),bin_solution_state):
+            if digit=='1':
+                circuit.append(instruction=XGate(),qargs=[circuit.qubits[qubit_idx]])
     return circuit
