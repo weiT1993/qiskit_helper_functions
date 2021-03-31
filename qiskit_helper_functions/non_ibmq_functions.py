@@ -150,12 +150,13 @@ def evaluate_circ(circuit, backend, options=None):
     else:
         raise NotImplementedError
 
-def circuit_stripping(circuit,gates_to_strip):
+def circuit_stripping(circuit):
+    # Remove all single qubit gates and barriers in the circuit
     dag = circuit_to_dag(circuit)
     stripped_dag = DAGCircuit()
     [stripped_dag.add_qreg(x) for x in circuit.qregs]
     for vertex in dag.topological_op_nodes():
-        if vertex.op.name not in gates_to_strip:
+        if len(vertex.qargs) == 2 and vertex.op.name!='barrier':
             stripped_dag.apply_operation_back(op=vertex.op, qargs=vertex.qargs)
     return dag_to_circuit(stripped_dag)
 
