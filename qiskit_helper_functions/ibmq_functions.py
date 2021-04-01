@@ -17,11 +17,8 @@ from qiskit_helper_functions.non_ibmq_functions import read_dict, apply_measurem
 from qiskit_helper_functions.conversions import dict_to_array
 
 def load_IBMQ(token,hub,group,project):
-    if len(IBMQ.stored_account()) == 0:
-        IBMQ.save_account(token)
-        IBMQ.load_account()
-    elif IBMQ.active_account() == None:
-        IBMQ.load_account()
+    IBMQ.save_account(token,overwrite=True)
+    IBMQ.load_account()
     provider = IBMQ.get_provider(hub=hub, group=group, project=project)
     return provider
 
