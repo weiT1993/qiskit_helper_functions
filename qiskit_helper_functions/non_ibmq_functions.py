@@ -2,7 +2,7 @@ import math, random, pickle, os
 from qiskit import QuantumCircuit, Aer, execute
 from qiskit.circuit.classicalregister import ClassicalRegister
 import qiskit.circuit.library as library
-from qiskit.circuit.library import CXGate, IGate, RZGate, XGate
+from qiskit.circuit.library import CXGate, IGate, RZGate, SXGate, XGate
 from qiskit.converters import circuit_to_dag, dag_to_circuit
 from qiskit.dagcircuit.dagcircuit import DAGCircuit
 import numpy as np
@@ -180,7 +180,7 @@ def generate_random_circuit(num_qubits, circuit_depth, density, inverse):
             num_gates += 1
         # Add some 1-qubit gates
         for qubit in range(num_qubits):
-            single_qubit_gate = random.choice([IGate(), RZGate(phi=random.uniform(0,np.pi*2)), XGate()])
+            single_qubit_gate = random.choice([IGate(), RZGate(phi=random.uniform(0,np.pi*2)), SXGate(), XGate()])
             circuit.append(instruction=single_qubit_gate,qargs=[qubit])
     if inverse:
         circuit += circuit.inverse()
