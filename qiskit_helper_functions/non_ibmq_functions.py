@@ -1,4 +1,4 @@
-import math, random, pickle, os
+import math, random, pickle, os, copy
 from qiskit import QuantumCircuit, Aer, execute
 from qiskit.circuit.classicalregister import ClassicalRegister
 import qiskit.circuit.library as library
@@ -162,11 +162,10 @@ def circuit_stripping(circuit):
 
 def dag_stripping(dag):
     # Remove all single qubit gates and barriers in the DAG
-    stripped_dag = DAGCircuit()
-    [stripped_dag.add_qreg(x) for x in dag.qregs]
-    for vertex in dag.topological_op_nodes():
-        if len(vertex.qargs) == 2 and vertex.op.name!='barrier':
-            stripped_dag.apply_operation_back(op=vertex.op, qargs=vertex.qargs)
+    stripped_dag = copy.deepcopy(dag)
+    for vertex in stripped_dag.topological_op_nodes():
+        if len(vertex.qargs) != 2 or vertex.op.name=='barrier':
+            stripped_dag.remove_op_node(vertex)
     return stripped_dag
 
 def generate_random_circuit(num_qubits, circuit_depth, density, inverse):
