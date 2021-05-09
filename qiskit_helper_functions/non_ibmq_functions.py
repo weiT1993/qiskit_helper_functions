@@ -160,6 +160,15 @@ def circuit_stripping(circuit):
             stripped_dag.apply_operation_back(op=vertex.op, qargs=vertex.qargs)
     return dag_to_circuit(stripped_dag)
 
+def dag_stripping(dag):
+    # Remove all single qubit gates and barriers in the DAG
+    stripped_dag = DAGCircuit()
+    [stripped_dag.add_qreg(x) for x in dag.qregs]
+    for vertex in dag.topological_op_nodes():
+        if len(vertex.qargs) == 2 and vertex.op.name!='barrier':
+            stripped_dag.apply_operation_back(op=vertex.op, qargs=vertex.qargs)
+    return stripped_dag
+
 def generate_random_circuit(num_qubits, circuit_depth, density, inverse):
     circuit = QuantumCircuit(num_qubits,name='q')
     max_gates_per_layer = int(num_qubits/2)
