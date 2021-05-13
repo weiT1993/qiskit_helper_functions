@@ -160,21 +160,12 @@ def circuit_stripping(circuit):
             stripped_dag.apply_operation_back(op=vertex.op, qargs=vertex.qargs)
     return dag_to_circuit(stripped_dag)
 
-def dag_stripping(dag, max_gates):
-    '''
-    Remove all single qubit gates and barriers in the DAG
-    Only leaves the first max_gates gates
-    If max_gates is None, do all gates
-    '''
-    stripped_dag = DAGCircuit()
-    [stripped_dag.add_qreg(dag.qregs[qreg_name]) for qreg_name in dag.qregs]
-    vertex_added = 0
-    for vertex in dag.topological_op_nodes():
-        is_two_q_gate = len(vertex.qargs) == 2 and vertex.op.name!='barrier'
-        within_gate_count = max_gates is None or vertex_added<max_gates
-        if is_two_q_gate and within_gate_count:
-            stripped_dag.apply_operation_back(op=vertex.op, qargs=vertex.qargs)
-            vertex_added += 1
+def dag_stripping(dag):
+    # Remove all single qubit gates and barriers in the DAG
+    stripped_dag = copy.deepcopy(dag)
+    for vertex in stripped_dag.topological_op_nodes():
+        if len(vertex.qargs) != 2 or vertex.op.name=='barrier':
+            stripped_dag.remove_op_node(vertex)
     return stripped_dag
 
 def generate_random_circuit(num_qubits, circuit_depth, density, inverse):
@@ -200,7 +191,7 @@ def generate_random_circuit(num_qubits, circuit_depth, density, inverse):
             single_qubit_gate = random.choice([IGate(), RZGate(phi=random.uniform(0,np.pi*2)), SXGate(), XGate()])
             circuit.append(instruction=single_qubit_gate,qargs=[qubit])
     if inverse:
-        circuit += circuit.inverse()
+        circuit.compose(circuit.inverse(),inplace=True)
         solution_state = np.random.choice(2**num_qubits)
         bin_solution_state = bin(solution_state)[2:].zfill(num_qubits)
         bin_solution_state = bin_solution_state[::-1]
