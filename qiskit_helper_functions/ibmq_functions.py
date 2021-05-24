@@ -34,7 +34,7 @@ def get_device_info(token,hub,group,project,device_name,fields,datetime):
             os.makedirs(dirname)
         provider = load_IBMQ(token=token,hub=hub,group=group,project=project)
         for x in provider.backends():
-            if 'qasm' not in str(x):
+            if 'simulator' not in str(x):
                 device = provider.get_backend(str(x))
                 properties = device.properties(datetime=datetime)
                 num_qubits = device.configuration().n_qubits

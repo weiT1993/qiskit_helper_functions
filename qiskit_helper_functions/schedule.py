@@ -61,7 +61,7 @@ class Scheduler:
         self.device_names = device_names
         for device_name in device_names:
             if self.verbose:
-                print('*'*20,'Submitting %s Jobs'%device_name,'*'*20,flush=True)
+                print('-->','IBMQ Scheduler : Submitting %s Jobs'%device_name,'<--',flush=True)
             
             today = datetime.now()
             device_info = get_device_info(token=self.token,hub=self.hub,group=self.group,project=self.project,device_name=device_name,
@@ -112,7 +112,7 @@ class Scheduler:
     def retrieve_jobs(self,force_prob,save_memory,save_directory):
         for device_name in self.device_names:
             if self.verbose:
-                print('*'*20,'Retrieving %s Jobs'%device_name,'*'*20)
+                print('-->','IBMQ Scheduler : Retrieving %s Jobs'%device_name,'<--')
             jobs = self.jobs[device_name]
             assert len(self.ibmq_schedules[device_name]) == len(jobs)
             memories = {}
@@ -176,7 +176,7 @@ class Scheduler:
         IBMQ_XXX: transpile
         '''
         if self.verbose:
-            print('*'*20,'Run %s Simulations'%device_name,'*'*20,flush=True)
+            print('-->','IBMQ Scheduler : Run %s Simulations'%device_name,'<--',flush=True)
         self._check_input(device_size=None)
 
         if 'ibmq' in device_name:
