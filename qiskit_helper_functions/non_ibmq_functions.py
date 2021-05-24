@@ -35,11 +35,12 @@ def factor_int(n):
             val -= 1
 
 def apply_measurement(circuit,qubits):
-    meas = QuantumCircuit(circuit.num_qubits, len(qubits))
-    meas.barrier(qubits)
-    meas.measure(qubits,meas.clbits)
-    qc = circuit+meas
-    return qc
+    measured_circuit = QuantumCircuit(circuit.num_qubits, len(qubits))
+    for circuit_inst, circuit_qubits, circuit_clbits in circuit.data:
+        measured_circuit.append(circuit_inst,circuit_qubits,circuit_clbits)
+    measured_circuit.barrier(qubits)
+    measured_circuit.measure(qubits,measured_circuit.clbits)
+    return measured_circuit
 
 def generate_circ(full_circ_size,circuit_type):
     def gen_secret(num_qubit):
@@ -170,9 +171,8 @@ def dag_stripping(dag, max_gates):
     [stripped_dag.add_qreg(dag.qregs[qreg_name]) for qreg_name in dag.qregs]
     vertex_added = 0
     for vertex in dag.topological_op_nodes():
-        is_two_q_gate = len(vertex.qargs) == 2 and vertex.op.name!='barrier'
         within_gate_count = max_gates is None or vertex_added<max_gates
-        if is_two_q_gate and within_gate_count:
+        if vertex.op.name!='barrier' and within_gate_count:
             stripped_dag.apply_operation_back(op=vertex.op, qargs=vertex.qargs)
             vertex_added += 1
     return stripped_dag
