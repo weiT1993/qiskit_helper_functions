@@ -79,7 +79,7 @@ def MAPE(target,obs):
         mape /= len(obs)
     else:
         raise Exception('target type : %s'%type(target))
-    return mape
+    return mape*100
 
 def fidelity(target,obs):
     if isinstance(target,np.ndarray):
