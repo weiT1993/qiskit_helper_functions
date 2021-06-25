@@ -2,11 +2,8 @@ import numpy as np
 from sklearn.linear_model import LinearRegression
 from qiskit.quantum_info import Statevector
 
-def chi2_distance(target,obs,normalize):
+def chi2_distance(target,obs):
     obs = np.absolute(obs)
-    if normalize:
-        obs = obs / sum(obs)
-        assert abs(sum(obs)-1)<1e-5
     if isinstance(target,np.ndarray):
         assert len(target)==len(obs)
         distance = 0
