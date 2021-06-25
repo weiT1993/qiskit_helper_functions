@@ -1,5 +1,6 @@
 import numpy as np
 from sklearn.linear_model import LinearRegression
+from qiskit.quantum_info import Statevector
 
 def chi2_distance(target,obs,normalize):
     obs = np.absolute(obs)
@@ -137,30 +138,13 @@ def correlation(target,obs):
     score = reg.score(X=obs,y=target)
     return score
 
-def nearest_probability_distribution(quasiprobability):
-    '''Takes a quasiprobability distribution and maps
-    it to the closest probability distribution as defined by
-    the L2-norm.
-    Parameters:
-        return_distance (bool): Return the L2 distance between distributions.
-    Returns:
-        ProbDistribution: Nearest probability distribution.
-        float: Euclidean (L2) distance of distributions.
-    Notes:
-        Method from Smolin et al., Phys. Rev. Lett. 108, 070502 (2012).
+def HOP(target,obs):
     '''
-    sorted_probs, states = zip(*sorted(zip(quasiprobability, range(len(quasiprobability)))))
-    num_elems = len(sorted_probs)
-    new_probs = np.zeros(num_elems)
-    beta = 0
-    diff = 0
-    for state, prob in zip(states,sorted_probs):
-        temp = prob + beta / num_elems
-        if temp < 0:
-            beta += prob
-            num_elems -= 1
-            diff += prob * prob
-        else:
-            diff += (beta / num_elems) * (beta / num_elems)
-            new_probs[state] = prob + beta / num_elems
-    return new_probs, np.sqrt(diff)
+    Measures the heavy output probability
+    '''
+    target_median = np.median(target)
+    hop = 0
+    for t,o in zip(target,obs):
+        if t>target_median:
+            hop += o
+    return hop

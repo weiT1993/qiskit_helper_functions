@@ -51,3 +51,52 @@ def memory_to_dict(memory):
             mem_dict[m] = 1
     assert sum(mem_dict.values()) == len(memory)
     return mem_dict
+
+def quasi_to_real(quasiprobability, mode):
+    '''
+    Convert a quasi probability to a valid probability distribution
+    '''
+    if mode=='nearest':
+        return nearest_probability_distribution(quasiprobability=quasiprobability)
+    elif mode=='naive':
+        return naive_probability_distribution(quasiprobability=quasiprobability)
+    else:
+        raise NotImplementedError('%s conversion is not implemented'%mode)
+
+def nearest_probability_distribution(quasiprobability):
+    '''Takes a quasiprobability distribution and maps
+    it to the closest probability distribution as defined by
+    the L2-norm.
+    Parameters:
+        return_distance (bool): Return the L2 distance between distributions.
+    Returns:
+        ProbDistribution: Nearest probability distribution.
+        float: Euclidean (L2) distance of distributions.
+    Notes:
+        Method from Smolin et al., Phys. Rev. Lett. 108, 070502 (2012).
+    '''
+    sorted_probs, states = zip(*sorted(zip(quasiprobability, range(len(quasiprobability)))))
+    num_elems = len(sorted_probs)
+    new_probs = np.zeros(num_elems)
+    beta = 0
+    diff = 0
+    for state, prob in zip(states,sorted_probs):
+        temp = prob + beta / num_elems
+        if temp < 0:
+            beta += prob
+            num_elems -= 1
+            diff += prob * prob
+        else:
+            diff += (beta / num_elems) * (beta / num_elems)
+            new_probs[state] = prob + beta / num_elems
+    return new_probs
+
+def naive_probability_distribution(quasiprobability):
+    '''
+    Takes a quasiprobability distribution and does the following two steps:
+    1. Update all negative probabilities to 0
+    2. Normalize
+    '''
+    new_probs = np.where(quasiprobability<0, 0, quasiprobability)
+    new_probs /= np.sum(new_probs)
+    return new_probs
