@@ -49,7 +49,7 @@ def MSE(target,obs):
         mse = se/len(obs)
     else:
         raise Exception('target type : %s'%type(target))
-    return mse, se
+    return mse
 
 def MAPE(target,obs):
     '''
