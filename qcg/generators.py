@@ -1,9 +1,7 @@
 from qiskit.circuit.library import GroverOperator
-from qiskit.aqua.components import oracles
 from qiskit.converters import circuit_to_dag, dag_to_circuit
 from qiskit.compiler import transpile
 from qiskit import BasicAer
-from qiskit.aqua import QuantumInstance
 from qiskit.dagcircuit.dagcircuit import DAGCircuit
 from qiskit import QuantumCircuit
 
