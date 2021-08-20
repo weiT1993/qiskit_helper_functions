@@ -172,7 +172,7 @@ def dag_stripping(dag, max_gates):
     vertex_added = 0
     for vertex in dag.topological_op_nodes():
         within_gate_count = max_gates is None or vertex_added<max_gates
-        if vertex.op.name!='barrier' and within_gate_count:
+        if vertex.op.name!='barrier' and len(vertex.qargs)==2 and within_gate_count:
             stripped_dag.apply_operation_back(op=vertex.op, qargs=vertex.qargs)
             vertex_added += 1
     return stripped_dag
