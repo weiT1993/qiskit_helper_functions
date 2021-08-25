@@ -19,7 +19,6 @@ def gen_grover(width):
     oracle.z(width-1)
     full_circuit = GroverOperator(oracle, insert_barriers=False, name='q')
     full_circuit = dag_to_circuit(circuit_to_dag(full_circuit))
-    full_circuit.qregs[0].name = 'q'
     full_circuit = full_circuit.decompose()
     full_circuit = transpile(full_circuit,optimization_level=3)
     return full_circuit
