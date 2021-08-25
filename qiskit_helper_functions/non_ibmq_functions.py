@@ -1,5 +1,6 @@
 import math, random, pickle, os, copy
-from qiskit import QuantumCircuit, Aer, execute
+from qiskit import QuantumCircuit, execute
+from qiskit.providers import aer
 from qiskit.circuit.classicalregister import ClassicalRegister
 import qiskit.circuit.library as library
 from qiskit.circuit.library import CXGate, IGate, RZGate, SXGate, XGate
@@ -99,55 +100,39 @@ def find_process_jobs(jobs,rank,num_workers):
     return process_jobs
 
 def evaluate_circ(circuit, backend, options=None):
+    simulator = aer.Aer.get_backend('aer_simulator')
     if backend=='statevector_simulator':
-        backend = Aer.get_backend('statevector_simulator')
-        job = execute(circuit, backend=backend, optimization_level=0)
-        result = job.result()
-        output_sv = result.get_statevector(circuit)
-        output_p = []
-        for x in output_sv:
-            amplitude = np.absolute(x)**2
-            if amplitude>1e-16:
-                output_p.append(amplitude)
-            else:
-                output_p.append(0)
-        output_p = np.array(output_p)
-        return output_p
+        circuit.save_statevector()
+        result = simulator.run(circuit).result()
+        counts = result.get_counts(circuit)
+        prob_vector = np.zeros(2**circuit.num_qubits)
+        for binary_state in counts:
+            state = int(binary_state,2)
+            prob_vector[state] = counts[binary_state]
+        return prob_vector
     elif backend == 'noiseless_qasm_simulator':
         if isinstance(options,dict) and 'num_shots' in options:
             num_shots = options['num_shots']
         else:
             num_shots = max(1024,2**circuit.num_qubits)
-        backend = Aer.get_backend('qasm_simulator')
 
         if isinstance(options,dict) and 'memory' in options:
             memory = options['memory']
         else:
             memory = False
         if circuit.num_clbits == 0:
-            circuit = apply_measurement(circuit=circuit,qubits=circuit.qubits)
-        noiseless_qasm_result = execute(circuit, backend, shots=num_shots, memory=memory).result()
+            circuit.measure_all()
+        result = simulator.run(circuit, shots=num_shots, memory=memory).result()
 
         if memory:
-            qasm_memory = np.array(noiseless_qasm_result.get_memory(0))
+            qasm_memory = np.array(result.get_memory(circuit))
             assert len(qasm_memory)==num_shots
             return qasm_memory
         else:
-            noiseless_counts = noiseless_qasm_result.get_counts(0)
+            noiseless_counts = result.get_counts(circuit)
             assert sum(noiseless_counts.values())==num_shots
             noiseless_counts = dict_to_array(distribution_dict=noiseless_counts,force_prob=True)
             return noiseless_counts
-    elif backend=='noisy_qasm_simulator':
-        noisy_qasm_result = execute(circuit, Aer.get_backend('qasm_simulator'),
-        coupling_map=options['coupling_map'],
-        basis_gates=options['basis_gates'],
-        noise_model=options['noise_model'],
-        shots=options['num_shots']).result()
-
-        noisy_counts = noisy_qasm_result.get_counts(0)
-        assert sum(noisy_counts.values())==options['num_shots']
-        noisy_counts = dict_to_array(distribution_dict=noisy_counts,force_prob=True)
-        return noisy_counts
     else:
         raise NotImplementedError
 
