@@ -100,6 +100,7 @@ def find_process_jobs(jobs,rank,num_workers):
     return process_jobs
 
 def evaluate_circ(circuit, backend, options=None):
+    circuit = copy.deepcopy(circuit)
     simulator = aer.Aer.get_backend('aer_simulator')
     if backend=='statevector_simulator':
         circuit.save_statevector()

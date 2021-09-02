@@ -57,7 +57,7 @@ def get_device_info(token,hub,group,project,device_name,fields,datetime):
             device_info[field] = device
         else:
             device_info[field] = _device_info[field]
-    return device_info
+    return device_info, filename
 
 def check_jobs(token,hub,group,project,cancel_jobs):
     provider = load_IBMQ(token=token,hub=hub,group=group,project=project)
