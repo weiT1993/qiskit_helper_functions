@@ -105,7 +105,7 @@ def evaluate_circ(circuit, backend, options=None):
     if backend=='statevector_simulator':
         circuit.save_statevector()
         result = simulator.run(circuit).result()
-        counts = result.get_counts(circuit)
+        counts = result.get_counts(0)
         prob_vector = np.zeros(2**circuit.num_qubits)
         for binary_state in counts:
             state = int(binary_state,2)
