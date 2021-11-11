@@ -1,4 +1,4 @@
-import math, random, pickle, os, copy
+import math, random, pickle, os, copy, random
 from qiskit import QuantumCircuit, execute
 from qiskit.providers import aer
 from qiskit.circuit.classicalregister import ClassicalRegister
@@ -10,6 +10,11 @@ import numpy as np
 
 from qcg.generators import gen_supremacy, gen_hwea, gen_BV, gen_qft, gen_sycamore, gen_adder, gen_grover
 from qiskit_helper_functions.conversions import dict_to_array
+
+def scramble(orig):
+    dest = orig[:]
+    random.shuffle(dest)
+    return dest
 
 def read_dict(filename):
     if os.path.isfile(filename):
