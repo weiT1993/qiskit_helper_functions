@@ -11,7 +11,7 @@ import numpy as np
 from qcg.generators import gen_supremacy, gen_hwea, gen_BV, gen_qft, gen_sycamore, gen_adder, gen_grover
 from qiskit_helper_functions.conversions import dict_to_array
 
-def scramble(orig):
+def scrambled(orig):
     dest = orig[:]
     random.shuffle(dest)
     return dest
