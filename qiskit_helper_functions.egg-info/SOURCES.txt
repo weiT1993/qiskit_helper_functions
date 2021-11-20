@@ -1,5 +1,8 @@
+.gitignore
+LICENSE
 README.md
 setup.py
+qcg/README.md
 qcg/__init__.py
 qcg/generators.py
 qcg/Arithmetic/__init__.py

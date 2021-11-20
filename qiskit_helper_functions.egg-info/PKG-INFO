@@ -6,8 +6,11 @@ Home-page: https://github.com/weiT1993/qiskit_helper_functions.git
 Author: weiT1993
 Author-email: tangwei1027@gmail.com
 License: MIT
-Description: # helper_functions
-        Some useful helper functions for quantum applications in Qiskit
 Platform: UNKNOWN
 Requires-Python: >=3.7
 Description-Content-Type: text/markdown
+License-File: LICENSE
+
+# helper_functions
+Some useful helper functions for quantum applications in Qiskit
+
