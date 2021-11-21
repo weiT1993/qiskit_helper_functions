@@ -1,11 +1,10 @@
-import math
 from qiskit import QuantumCircuit
-from qiskit.circuit.library import CUGate, HGate, TGate, XGate, YGate, ZGate
+from qiskit.circuit.library import CPhaseGate, HGate, TGate, XGate, YGate, ZGate
 from qiskit.converters import circuit_to_dag, dag_to_circuit
-import random
+import random, itertools
 
 class RandomCircuit(object):
-    def __init__(self, width, depth, connection_degree, seed) -> None:
+    def __init__(self, width, depth, connection_degree, num_hadamards, seed) -> None:
         '''
         Generate a random benchmark circuit
         width: number of qubits
@@ -17,6 +16,7 @@ class RandomCircuit(object):
         random.seed(seed)
         self.width = width
         self.depth = depth
+        self.num_hadamards = num_hadamards
         # Decay rate of #targets
         self.num_targets_ubs = [self.width-1]
         for qubit in range(1,width):
@@ -28,19 +28,33 @@ class RandomCircuit(object):
     
     def generate(self):
         entangled_circuit, num_targets = self.generate_entangled()
+
+        ''' Encode random solution states '''
+        encoding_qubits = random.sample(range(self.width),self.num_hadamards)
+        quantum_states = [['0'] for qubit in range(self.width)]
+        for qubit in encoding_qubits:
+            entangled_circuit.append(instruction=HGate(),qargs=[qubit])
+            quantum_states[qubit] = ['0','1']
+        solution_states_strings = itertools.product(*quantum_states)
+        solution_states = []
+        for binary_state in solution_states_strings:
+            binary_state = ''.join(binary_state[::-1])
+            state = int(binary_state,2)
+            solution_states.append(state)
         # print('%d 2q gates. %d tensor factors. %d depth.'%(
         #     entangled_circuit.num_nonlocal_gates(),
         #     entangled_circuit.num_unitary_factors(),
         #     entangled_circuit.depth()
         #     ))
         # print('num_targets = {}'.format(num_targets))
-        return entangled_circuit
+        return entangled_circuit, solution_states
     
     def generate_entangled(self):
-        entangled_circuit = QuantumCircuit(self.width,name='q')
-        entangled_dag = circuit_to_dag(entangled_circuit)
-        # for qubit in entangled_dag.qubits:
-        #     entangled_dag.apply_operation_back(op=HGate(),qargs=[qubit],cargs=[])
+        left_circuit = QuantumCircuit(self.width,name='q')
+        left_dag = circuit_to_dag(left_circuit)
+
+        right_circuit = QuantumCircuit(self.width,name='q')
+        right_dag = circuit_to_dag(right_circuit)
     
         qubit_targets = {qubit:set() for qubit in range(self.width)}
         while True:
@@ -50,26 +64,25 @@ class RandomCircuit(object):
             random_control_qubit_idx = self.get_random_control(qubit_targets)
             random_target_qubit_idx = self.get_random_target(random_control_qubit_idx,qubit_targets)
             
-            random_control_qubit = entangled_dag.qubits[random_control_qubit_idx]
-            random_target_qubit = entangled_dag.qubits[random_target_qubit_idx]
-            theta = random.uniform(-math.pi,math.pi)
-            phi = random.uniform(-math.pi,math.pi)
-            lam = random.uniform(-math.pi,math.pi)
-            gamma = random.uniform(-math.pi,math.pi)
-            entangled_dag.apply_operation_back(op=CUGate(theta,phi,lam,gamma),qargs=[random_control_qubit,random_target_qubit],cargs=[])
+            dag_to_apply = random.choice([left_dag,right_dag])
+            random_control_qubit = dag_to_apply.qubits[random_control_qubit_idx]
+            random_target_qubit = dag_to_apply.qubits[random_target_qubit_idx]
+            dag_to_apply.apply_operation_back(op=CPhaseGate(theta=0.0),qargs=[random_control_qubit,random_target_qubit],cargs=[])
             qubit_targets[random_control_qubit_idx].add(random_target_qubit_idx)
 
             '''
-            Apply two random 1-q gates
+            Apply a random 1-q gate to left_dag
+            Apply its inverse to right_dag
             '''
-            for _ in range(2):
-                single_qubit_gate = random.choice([HGate(), TGate(), XGate(), YGate(), ZGate()])
-                random_qubit = entangled_dag.qubits[random.choice(range(self.width))]
-                entangled_dag.apply_operation_back(op=single_qubit_gate,qargs=[random_qubit],cargs=[])
+            single_qubit_gate = random.choice([HGate(), TGate(), XGate(), YGate(), ZGate()])
+            random_qubit = left_dag.qubits[random.choice(range(self.width))]
+            left_dag.apply_operation_back(op=single_qubit_gate,qargs=[random_qubit],cargs=[])
+            right_dag.apply_operation_front(op=single_qubit_gate.inverse(),qargs=[random_qubit],cargs=[])
             
             ''' Terminate when there is enough depth '''
-            if entangled_dag.depth()>=self.depth:
+            if left_dag.depth()+right_dag.depth()>=self.depth:
                 break
+        entangled_dag = left_dag.compose(right_dag,inplace=False)
         entangled_circuit = dag_to_circuit(entangled_dag)
         num_targets = [len(qubit_targets[qubit]) for qubit in range(self.width)]
         for qubit in range(self.width):

@@ -167,35 +167,3 @@ def dag_stripping(dag, max_gates):
             stripped_dag.apply_operation_back(op=vertex.op, qargs=vertex.qargs)
             vertex_added += 1
     return stripped_dag
-
-def generate_random_circuit(num_qubits, circuit_depth, density, inverse):
-    circuit = QuantumCircuit(num_qubits,name='q')
-    max_gates_per_layer = int(num_qubits/2)
-    num_gates_per_layer = max(int(density*max_gates_per_layer),1)
-    # print('Generating %d-q random circuit, density = %d*%d.'%(
-    #     num_qubits,num_gates_per_layer,circuit_depth))
-    depth_of_random = int(circuit_depth/4) if inverse else int(circuit_depth/2)
-    for depth in range(depth_of_random):
-        qubit_candidates = list(range(num_qubits))
-        num_gates = 0
-        while len(qubit_candidates)>=2 and num_gates<num_gates_per_layer:
-            qubit_pair = np.random.choice(a=qubit_candidates,replace=False,size=2)
-            for qubit in qubit_pair:
-                del qubit_candidates[qubit_candidates.index(qubit)]
-            # Add a 2-qubit gate
-            qubit_pair = [circuit.qubits[qubit] for qubit in qubit_pair]
-            circuit.append(instruction=CXGate(),qargs=qubit_pair)
-            num_gates += 1
-        # Add some 1-qubit gates
-        for qubit in range(num_qubits):
-            single_qubit_gate = random.choice([IGate(), RZGate(phi=random.uniform(0,np.pi*2)), SXGate(), XGate()])
-            circuit.append(instruction=single_qubit_gate,qargs=[qubit])
-    if inverse:
-        circuit.compose(circuit.inverse(),inplace=True)
-        solution_state = np.random.choice(2**num_qubits)
-        bin_solution_state = bin(solution_state)[2:].zfill(num_qubits)
-        bin_solution_state = bin_solution_state[::-1]
-        for qubit_idx, digit in zip(range(num_qubits),bin_solution_state):
-            if digit=='1':
-                circuit.append(instruction=XGate(),qargs=[circuit.qubits[qubit_idx]])
-    return circuit
