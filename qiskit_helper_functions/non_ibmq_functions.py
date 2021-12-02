@@ -6,6 +6,7 @@ import qiskit.circuit.library as library
 from qiskit.circuit.library import CXGate, IGate, RZGate, SXGate, XGate
 from qiskit.converters import circuit_to_dag, dag_to_circuit
 from qiskit.dagcircuit.dagcircuit import DAGCircuit
+from qiskit.compiler import transpile
 import numpy as np
 
 from qcg.generators import gen_supremacy, gen_hwea, gen_BV, gen_qft, gen_sycamore, gen_adder, gen_grover
@@ -55,41 +56,36 @@ def generate_circ(num_qubits,depth,circuit_type):
         num = bin(num)[2:]
         num_with_zeros = str(num).zfill(num_digit)
         return num_with_zeros
-
-    i,j = factor_int(num_qubits)
-    if circuit_type == 'supremacy_linear':
-        full_circ = gen_supremacy(1,num_qubits,depth,regname='q')
-    elif circuit_type == 'supremacy':
-        if abs(i-j)<=2:
-            full_circ = gen_supremacy(i,j,depth,regname='q')
-        else:
-            full_circ = None
-    elif circuit_type == 'hwea':
-        full_circ = gen_hwea(i*j,depth,regname='q')
-    elif circuit_type == 'bv':
-        full_circ = gen_BV(gen_secret(i*j),barriers=False,regname='q')
-    elif circuit_type == 'qft':
-        full_circ = library.QFT(num_qubits=num_qubits,approximation_degree=0,do_swaps=False)
-    elif circuit_type=='aqft':
-        approximation_degree=int(math.log(num_qubits,2)+2)
-        full_circ = library.QFT(num_qubits=num_qubits,approximation_degree=num_qubits-approximation_degree,do_swaps=False)
-    elif circuit_type == 'sycamore':
-        full_circ = gen_sycamore(i,j,depth,regname='q')
-    elif circuit_type == 'adder':
-        if num_qubits%2==0 and num_qubits>2:
+    
+    if not (num_qubits%2==0 and num_qubits>2):
+        full_circ = None
+    else:
+        i,j = factor_int(num_qubits)
+        if circuit_type == 'supremacy_linear':
+            full_circ = gen_supremacy(1,num_qubits,depth,regname='q')
+        elif circuit_type == 'supremacy':
+            if abs(i-j)<=2:
+                full_circ = gen_supremacy(i,j,depth,regname='q')
+            else:
+                full_circ = None
+        elif circuit_type == 'hwea':
+            full_circ = gen_hwea(i*j,depth,regname='q')
+        elif circuit_type == 'bv':
+            full_circ = gen_BV(gen_secret(i*j),barriers=False,regname='q')
+        elif circuit_type == 'qft':
+            full_circ = library.QFT(num_qubits=num_qubits,approximation_degree=0,do_swaps=False).decompose()
+        elif circuit_type=='aqft':
+            approximation_degree=int(math.log(num_qubits,2)+2)
+            full_circ = library.QFT(num_qubits=num_qubits,approximation_degree=num_qubits-approximation_degree,do_swaps=False).decompose()
+        elif circuit_type == 'sycamore':
+            full_circ = gen_sycamore(i,j,depth,regname='q')
+        elif circuit_type == 'adder':
             full_circ = gen_adder(nbits=int((num_qubits-2)/2),barriers=False,regname='q')
-        else:
-            full_circ = None
-    elif circuit_type == 'grover':
-        if num_qubits%2==0:
+        elif circuit_type == 'grover':
             full_circ = gen_grover(width=num_qubits)
         else:
-            full_circ = None
-    elif circuit_type == 'random':
-        full_circ = generate_random_circuit(num_qubits=num_qubits,circuit_depth=depth,density=0.5,inverse=True)
-    else:
-        raise Exception('Illegal circuit type:',circuit_type)
-    assert full_circ.num_qubits==num_qubits or full_circ.num_qubits==0
+            raise Exception('Illegal circuit type:',circuit_type)
+    assert full_circ is None or full_circ.num_qubits==num_qubits
     return full_circ
 
 def find_process_jobs(jobs,rank,num_workers):
