@@ -8,6 +8,7 @@ from qiskit.converters import circuit_to_dag, dag_to_circuit
 from qiskit.dagcircuit.dagcircuit import DAGCircuit
 from qiskit.compiler import transpile
 import numpy as np
+import psutil
 
 from qcg.generators import gen_supremacy, gen_hwea, gen_BV, gen_qft, gen_sycamore, gen_adder, gen_grover
 from qiskit_helper_functions.conversions import dict_to_array
@@ -102,7 +103,9 @@ def find_process_jobs(jobs,rank,num_workers):
 
 def evaluate_circ(circuit, backend, options=None):
     circuit = copy.deepcopy(circuit)
-    simulator = aer.Aer.get_backend('aer_simulator')
+    max_memory_mb = psutil.virtual_memory().total>>20
+    max_memory_mb = int(max_memory_mb/4*3)
+    simulator = aer.Aer.get_backend('aer_simulator',max_memory_mb=max_memory_mb)
     if backend=='statevector_simulator':
         circuit.save_statevector()
         result = simulator.run(circuit).result()

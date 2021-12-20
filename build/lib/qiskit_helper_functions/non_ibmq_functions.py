@@ -1,4 +1,4 @@
-import math, random, pickle, os, copy
+import math, random, pickle, os, copy, random
 from qiskit import QuantumCircuit, execute
 from qiskit.providers import aer
 from qiskit.circuit.classicalregister import ClassicalRegister
@@ -6,10 +6,17 @@ import qiskit.circuit.library as library
 from qiskit.circuit.library import CXGate, IGate, RZGate, SXGate, XGate
 from qiskit.converters import circuit_to_dag, dag_to_circuit
 from qiskit.dagcircuit.dagcircuit import DAGCircuit
+from qiskit.compiler import transpile
 import numpy as np
+import psutil
 
 from qcg.generators import gen_supremacy, gen_hwea, gen_BV, gen_qft, gen_sycamore, gen_adder, gen_grover
 from qiskit_helper_functions.conversions import dict_to_array
+
+def scrambled(orig):
+    dest = orig[:]
+    random.shuffle(dest)
+    return dest
 
 def read_dict(filename):
     if os.path.isfile(filename):
@@ -50,41 +57,36 @@ def generate_circ(num_qubits,depth,circuit_type):
         num = bin(num)[2:]
         num_with_zeros = str(num).zfill(num_digit)
         return num_with_zeros
-
-    i,j = factor_int(num_qubits)
-    if circuit_type == 'supremacy_linear':
-        full_circ = gen_supremacy(1,num_qubits,depth,regname='q')
-    elif circuit_type == 'supremacy':
-        if abs(i-j)<=2:
-            full_circ = gen_supremacy(i,j,depth,regname='q')
-        else:
-            full_circ = None
-    elif circuit_type == 'hwea':
-        full_circ = gen_hwea(i*j,depth,regname='q')
-    elif circuit_type == 'bv':
-        full_circ = gen_BV(gen_secret(i*j),barriers=False,regname='q')
-    elif circuit_type == 'qft':
-        full_circ = library.QFT(num_qubits=num_qubits,approximation_degree=0,do_swaps=False)
-    elif circuit_type=='aqft':
-        approximation_degree=int(math.log(num_qubits,2)+2)
-        full_circ = library.QFT(num_qubits=num_qubits,approximation_degree=num_qubits-approximation_degree,do_swaps=False)
-    elif circuit_type == 'sycamore':
-        full_circ = gen_sycamore(i,j,depth,regname='q')
-    elif circuit_type == 'adder':
-        if num_qubits%2==0 and num_qubits>2:
+    
+    if not (num_qubits%2==0 and num_qubits>2):
+        full_circ = None
+    else:
+        i,j = factor_int(num_qubits)
+        if circuit_type == 'supremacy_linear':
+            full_circ = gen_supremacy(1,num_qubits,depth,regname='q')
+        elif circuit_type == 'supremacy':
+            if abs(i-j)<=2:
+                full_circ = gen_supremacy(i,j,depth,regname='q')
+            else:
+                full_circ = None
+        elif circuit_type == 'hwea':
+            full_circ = gen_hwea(i*j,depth,regname='q')
+        elif circuit_type == 'bv':
+            full_circ = gen_BV(gen_secret(i*j),barriers=False,regname='q')
+        elif circuit_type == 'qft':
+            full_circ = library.QFT(num_qubits=num_qubits,approximation_degree=0,do_swaps=False).decompose()
+        elif circuit_type=='aqft':
+            approximation_degree=int(math.log(num_qubits,2)+2)
+            full_circ = library.QFT(num_qubits=num_qubits,approximation_degree=num_qubits-approximation_degree,do_swaps=False).decompose()
+        elif circuit_type == 'sycamore':
+            full_circ = gen_sycamore(i,j,depth,regname='q')
+        elif circuit_type == 'adder':
             full_circ = gen_adder(nbits=int((num_qubits-2)/2),barriers=False,regname='q')
-        else:
-            full_circ = None
-    elif circuit_type == 'grover':
-        if num_qubits%2==0:
+        elif circuit_type == 'grover':
             full_circ = gen_grover(width=num_qubits)
         else:
-            full_circ = None
-    elif circuit_type == 'random':
-        full_circ = generate_random_circuit(num_qubits=num_qubits,circuit_depth=depth,density=0.5,inverse=True)
-    else:
-        raise Exception('Illegal circuit type:',circuit_type)
-    assert full_circ.num_qubits==num_qubits or full_circ.num_qubits==0
+            raise Exception('Illegal circuit type:',circuit_type)
+    assert full_circ is None or full_circ.num_qubits==num_qubits
     return full_circ
 
 def find_process_jobs(jobs,rank,num_workers):
@@ -101,11 +103,13 @@ def find_process_jobs(jobs,rank,num_workers):
 
 def evaluate_circ(circuit, backend, options=None):
     circuit = copy.deepcopy(circuit)
-    simulator = aer.Aer.get_backend('aer_simulator')
+    max_memory_mb = psutil.virtual_memory().total>>20
+    max_memory_mb = int(max_memory_mb/4*3)
+    simulator = aer.Aer.get_backend('aer_simulator',max_memory_mb=max_memory_mb)
     if backend=='statevector_simulator':
         circuit.save_statevector()
         result = simulator.run(circuit).result()
-        counts = result.get_counts(circuit)
+        counts = result.get_counts(0)
         prob_vector = np.zeros(2**circuit.num_qubits)
         for binary_state in counts:
             state = int(binary_state,2)
@@ -162,35 +166,3 @@ def dag_stripping(dag, max_gates):
             stripped_dag.apply_operation_back(op=vertex.op, qargs=vertex.qargs)
             vertex_added += 1
     return stripped_dag
-
-def generate_random_circuit(num_qubits, circuit_depth, density, inverse):
-    circuit = QuantumCircuit(num_qubits,name='q')
-    max_gates_per_layer = int(num_qubits/2)
-    num_gates_per_layer = max(int(density*max_gates_per_layer),1)
-    # print('Generating %d-q random circuit, density = %d*%d.'%(
-    #     num_qubits,num_gates_per_layer,circuit_depth))
-    depth_of_random = int(circuit_depth/4) if inverse else int(circuit_depth/2)
-    for depth in range(depth_of_random):
-        qubit_candidates = list(range(num_qubits))
-        num_gates = 0
-        while len(qubit_candidates)>=2 and num_gates<num_gates_per_layer:
-            qubit_pair = np.random.choice(a=qubit_candidates,replace=False,size=2)
-            for qubit in qubit_pair:
-                del qubit_candidates[qubit_candidates.index(qubit)]
-            # Add a 2-qubit gate
-            qubit_pair = [circuit.qubits[qubit] for qubit in qubit_pair]
-            circuit.append(instruction=CXGate(),qargs=qubit_pair)
-            num_gates += 1
-        # Add some 1-qubit gates
-        for qubit in range(num_qubits):
-            single_qubit_gate = random.choice([IGate(), RZGate(phi=random.uniform(0,np.pi*2)), SXGate(), XGate()])
-            circuit.append(instruction=single_qubit_gate,qargs=[qubit])
-    if inverse:
-        circuit.compose(circuit.inverse(),inplace=True)
-        solution_state = np.random.choice(2**num_qubits)
-        bin_solution_state = bin(solution_state)[2:].zfill(num_qubits)
-        bin_solution_state = bin_solution_state[::-1]
-        for qubit_idx, digit in zip(range(num_qubits),bin_solution_state):
-            if digit=='1':
-                circuit.append(instruction=XGate(),qargs=[circuit.qubits[qubit_idx]])
-    return circuit
