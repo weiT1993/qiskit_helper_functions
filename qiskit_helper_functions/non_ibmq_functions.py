@@ -7,6 +7,7 @@ from qiskit.circuit.library import CXGate, IGate, RZGate, SXGate, XGate
 from qiskit.converters import circuit_to_dag, dag_to_circuit
 from qiskit.dagcircuit.dagcircuit import DAGCircuit
 from qiskit.compiler import transpile
+from qiskit.quantum_info import Statevector
 import numpy as np
 import psutil
 
@@ -105,17 +106,13 @@ def evaluate_circ(circuit, backend, options=None):
     circuit = copy.deepcopy(circuit)
     max_memory_mb = psutil.virtual_memory().total>>20
     max_memory_mb = int(max_memory_mb/4*3)
-    simulator = aer.Aer.get_backend('aer_simulator',max_memory_mb=max_memory_mb)
     if backend=='statevector_simulator':
-        circuit.save_statevector()
+        simulator = aer.Aer.get_backend('statevector_simulator')
         result = simulator.run(circuit).result()
-        counts = result.get_counts(0)
-        prob_vector = np.zeros(2**circuit.num_qubits)
-        for binary_state in counts:
-            state = int(binary_state,2)
-            prob_vector[state] = counts[binary_state]
+        prob_vector = Statevector(result.get_statevector(circuit)).probabilities()
         return prob_vector
     elif backend == 'noiseless_qasm_simulator':
+        simulator = aer.Aer.get_backend('aer_simulator',max_memory_mb=max_memory_mb)
         if isinstance(options,dict) and 'num_shots' in options:
             num_shots = options['num_shots']
         else:
