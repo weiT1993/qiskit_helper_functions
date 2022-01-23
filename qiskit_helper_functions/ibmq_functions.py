@@ -1,11 +1,7 @@
-from qiskit.compiler import transpile, assemble
-from qiskit.providers.aer import noise
-from qiskit import IBMQ, Aer, execute
+from qiskit import IBMQ
 from qiskit.providers.jobstatus import JobStatus
 from qiskit.providers.aer.noise import NoiseModel
 from qiskit.transpiler import CouplingMap
-import argparse
-from qiskit.visualization import plot_gate_map, plot_error_map
 from datetime import timedelta, datetime
 from pytz import timezone
 import time
@@ -13,8 +9,7 @@ import subprocess
 import os
 import pickle
 
-from qiskit_helper_functions.non_ibmq_functions import read_dict, apply_measurement
-from qiskit_helper_functions.conversions import dict_to_array
+from qiskit_helper_functions.non_ibmq_functions import read_dict
 
 def load_IBMQ(token,hub,group,project):
     IBMQ.save_account(token,overwrite=True)
