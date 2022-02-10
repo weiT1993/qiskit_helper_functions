@@ -1,17 +1,14 @@
 import math, random, pickle, os, copy, random
-from qiskit import QuantumCircuit, execute
+from qiskit import QuantumCircuit
 from qiskit.providers import aer
-from qiskit.circuit.classicalregister import ClassicalRegister
 import qiskit.circuit.library as library
-from qiskit.circuit.library import CXGate, IGate, RZGate, SXGate, XGate
 from qiskit.converters import circuit_to_dag, dag_to_circuit
 from qiskit.dagcircuit.dagcircuit import DAGCircuit
-from qiskit.compiler import transpile
 from qiskit.quantum_info import Statevector
 import numpy as np
 import psutil
 
-from qcg.generators import gen_supremacy, gen_hwea, gen_BV, gen_qft, gen_sycamore, gen_adder, gen_grover
+from qcg.generators import gen_supremacy, gen_hwea, gen_BV, gen_sycamore, gen_adder
 from qiskit_helper_functions.conversions import dict_to_array
 
 def scrambled(orig):
@@ -83,8 +80,6 @@ def generate_circ(num_qubits,depth,circuit_type):
             full_circ = gen_sycamore(i,j,depth,regname='q')
         elif circuit_type == 'adder':
             full_circ = gen_adder(nbits=int((num_qubits-2)/2),barriers=False,regname='q')
-        elif circuit_type == 'grover':
-            full_circ = gen_grover(width=num_qubits)
         else:
             raise Exception('Illegal circuit type:',circuit_type)
     assert full_circ is None or full_circ.num_qubits==num_qubits

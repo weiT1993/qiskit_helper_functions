@@ -1,10 +1,3 @@
-from qiskit.circuit.library import GroverOperator
-from qiskit.converters import circuit_to_dag, dag_to_circuit
-from qiskit.compiler import transpile
-from qiskit import BasicAer
-from qiskit.dagcircuit.dagcircuit import DAGCircuit
-from qiskit import QuantumCircuit
-
 from .Supremacy import Qgrid_original, Qgrid_Sycamore
 from .QAOA import hw_efficient_ansatz
 from .VQE import uccsd_ansatz
@@ -13,15 +6,6 @@ from .QWalk import quantum_walk
 from .Dynamics import quantum_dynamics
 from .BernsteinVazirani import bernstein_vazirani
 from .Arithmetic import ripple_carry_adder
-
-def gen_grover(width):
-    oracle = QuantumCircuit(width,name='q')
-    oracle.z(width-1)
-    full_circuit = GroverOperator(oracle, insert_barriers=False, name='q')
-    full_circuit = dag_to_circuit(circuit_to_dag(full_circuit))
-    full_circuit = full_circuit.decompose()
-    full_circuit = transpile(full_circuit,optimization_level=3)
-    return full_circuit
 
 def gen_supremacy(height, width, depth, order=None, singlegates=True,
                   mirror=False, barriers=False, measure=False, regname=None):
