@@ -4,6 +4,7 @@ import networkx as nx
 import numpy as np
 
 from qcg.generators import gen_supremacy, gen_hwea, gen_BV, gen_sycamore, gen_adder
+from qiskit_helper_functions.random_benchmark import RandomCircuit
 
 def factor_int(n):
     nsqrt = math.ceil(math.sqrt(n))
@@ -53,6 +54,18 @@ def construct_qaoa_plus(P, G, params, barriers=False, measure=False):
 
     return circ
 
+def construct_random(num_qubits):
+    random_circuit_obj = RandomCircuit(width=num_qubits,depth=num_qubits,
+    connection_degree=0.2,num_hadamards=5,seed=None)
+    num_trials = 100
+    while num_trials:
+        circuit, _ = random_circuit_obj.generate()
+        if circuit.num_tensor_factors()==1:
+            return circuit
+        else:
+            num_trials -= 1
+    return None
+
 def generate_circ(num_qubits,depth,circuit_type):
     full_circ = None
     i,j = factor_int(num_qubits)
@@ -91,6 +104,8 @@ def generate_circ(num_qubits,depth,circuit_type):
                 break
             else:
                 num_trials -= 1
+    elif circuit_type=='random':
+        full_circ = construct_random(num_qubits)
     else:
         raise Exception('Illegal circuit type:',circuit_type)
     assert full_circ is None or full_circ.num_qubits==num_qubits
