@@ -70,8 +70,9 @@ def generate_circ(num_qubits,depth,circuit_type,seed):
     random.seed(seed)
     full_circ = None
     i,j = factor_int(num_qubits)
-    if circuit_type == 'supremacy' and abs(i-j)<=2:
-        full_circ = gen_supremacy(i,j,depth,regname='q')
+    if circuit_type == 'supremacy':
+        if abs(i-j)<=2:
+            full_circ = gen_supremacy(i,j,depth*8,regname='q')
     elif circuit_type == 'sycamore':
         full_circ = gen_sycamore(i,j,depth,regname='q')
     elif circuit_type == 'hwea':
@@ -86,15 +87,16 @@ def generate_circ(num_qubits,depth,circuit_type,seed):
     elif circuit_type == 'adder':
         full_circ = gen_adder(nbits=int((num_qubits-2)/2),barriers=False,regname='q')
     elif circuit_type=='regular':
-        num_trials = 100
-        while num_trials:
-            graph = nx.random_regular_graph(3, num_qubits)
-            if nx.is_connected(graph):
-                full_circ = construct_qaoa_plus(P=depth,G=graph,
-                params=[np.random.uniform(-np.pi,np.pi) for _ in range(2*depth)])
-                break
-            else:
-                num_trials -= 1
+        if 3*num_qubits%2==0:
+            num_trials = 100
+            while num_trials:
+                graph = nx.random_regular_graph(3, num_qubits)
+                if nx.is_connected(graph):
+                    full_circ = construct_qaoa_plus(P=depth,G=graph,
+                    params=[np.random.uniform(-np.pi,np.pi) for _ in range(2*depth)])
+                    break
+                else:
+                    num_trials -= 1
     elif circuit_type=='erdos':
         num_trials = 100
         while num_trials:
