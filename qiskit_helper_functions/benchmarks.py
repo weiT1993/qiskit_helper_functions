@@ -98,15 +98,17 @@ def generate_circ(num_qubits,depth,circuit_type,seed):
                 else:
                     num_trials -= 1
     elif circuit_type=='erdos':
-        num_trials = 100
+        num_trials = 1000
+        density = 0.001
         while num_trials:
-            graph = nx.generators.random_graphs.erdos_renyi_graph(num_qubits, 0.05)
+            graph = nx.generators.random_graphs.erdos_renyi_graph(num_qubits, density)
             if nx.is_connected(graph):
                 full_circ = construct_qaoa_plus(P=depth,G=graph,
                 params=[np.random.uniform(-np.pi,np.pi) for _ in range(2*depth)])
                 break
             else:
                 num_trials -= 1
+                density += 0.001
     elif circuit_type=='random':
         full_circ = construct_random(num_qubits)
     else:
