@@ -1,4 +1,6 @@
-import math, random, pickle, os, copy, random
+import warnings
+warnings.filterwarnings('ignore')
+import random, pickle, os, copy, random
 from qiskit import QuantumCircuit
 from qiskit.providers import aer
 from qiskit.converters import circuit_to_dag, dag_to_circuit
@@ -55,7 +57,8 @@ def evaluate_circ(circuit, backend, options=None):
     if backend=='statevector_simulator':
         simulator = aer.Aer.get_backend('statevector_simulator')
         result = simulator.run(circuit).result()
-        prob_vector = Statevector(result.get_statevector(circuit)).probabilities()
+        statevector = result.get_statevector(circuit)
+        prob_vector = Statevector(statevector).probabilities()
         return prob_vector
     elif backend == 'noiseless_qasm_simulator':
         simulator = aer.Aer.get_backend('aer_simulator',max_memory_mb=max_memory_mb)
