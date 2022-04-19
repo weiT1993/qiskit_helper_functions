@@ -23,11 +23,11 @@ def gen_secret(num_qubit):
         num_with_zeros = str(num).zfill(num_digit)
         return num_with_zeros
 
-def construct_qaoa_plus(P, G, params, barriers=False, measure=False):
+def construct_qaoa_plus(P, G, params, reg_name, barriers=False, measure=False):
     assert len(params) == 2 * P, 'Number of parameters should be 2P'
 
     nq = len(G.nodes())
-    circ = qiskit.QuantumCircuit(nq, name='q')
+    circ = qiskit.QuantumCircuit(qiskit.QuantumRegister(nq, reg_name))
 
     # Initial state
     circ.h(range(nq))
@@ -66,26 +66,26 @@ def construct_random(num_qubits):
             num_trials -= 1
     return None
 
-def generate_circ(num_qubits,depth,circuit_type,seed):
+def generate_circ(num_qubits,depth,circuit_type,reg_name,seed):
     random.seed(seed)
     full_circ = None
     i,j = factor_int(num_qubits)
     if circuit_type == 'supremacy':
         if abs(i-j)<=2:
-            full_circ = gen_supremacy(i,j,depth*8,regname='q')
+            full_circ = gen_supremacy(i,j,depth*8,regname=reg_name)
     elif circuit_type == 'sycamore':
-        full_circ = gen_sycamore(i,j,depth,regname='q')
+        full_circ = gen_sycamore(i,j,depth,regname=reg_name)
     elif circuit_type == 'hwea':
-        full_circ = gen_hwea(i*j,depth,regname='q')
+        full_circ = gen_hwea(i*j,depth,regname=reg_name)
     elif circuit_type == 'bv':
-        full_circ = gen_BV(gen_secret(i*j),barriers=False,regname='q')
+        full_circ = gen_BV(gen_secret(i*j),barriers=False,regname=reg_name)
     elif circuit_type == 'qft':
         full_circ = library.QFT(num_qubits=num_qubits,approximation_degree=0,do_swaps=False).decompose()
     elif circuit_type=='aqft':
         approximation_degree=int(math.log(num_qubits,2)+2)
         full_circ = library.QFT(num_qubits=num_qubits,approximation_degree=num_qubits-approximation_degree,do_swaps=False).decompose()
     elif circuit_type == 'adder':
-        full_circ = gen_adder(nbits=int((num_qubits-2)/2),barriers=False,regname='q')
+        full_circ = gen_adder(nbits=int((num_qubits-2)/2),barriers=False,regname=reg_name)
     elif circuit_type=='regular':
         if 3*num_qubits%2==0:
             num_trials = 100
@@ -93,7 +93,7 @@ def generate_circ(num_qubits,depth,circuit_type,seed):
                 graph = nx.random_regular_graph(3, num_qubits)
                 if nx.is_connected(graph):
                     full_circ = construct_qaoa_plus(P=depth,G=graph,
-                    params=[np.random.uniform(-np.pi,np.pi) for _ in range(2*depth)])
+                    params=[np.random.uniform(-np.pi,np.pi) for _ in range(2*depth)],reg_name=reg_name)
                     break
                 else:
                     num_trials -= 1
@@ -104,7 +104,7 @@ def generate_circ(num_qubits,depth,circuit_type,seed):
             graph = nx.generators.random_graphs.erdos_renyi_graph(num_qubits, density)
             if nx.is_connected(graph):
                 full_circ = construct_qaoa_plus(P=depth,G=graph,
-                params=[np.random.uniform(-np.pi,np.pi) for _ in range(2*depth)])
+                params=[np.random.uniform(-np.pi,np.pi) for _ in range(2*depth)],reg_name=reg_name)
                 break
             else:
                 num_trials -= 1
