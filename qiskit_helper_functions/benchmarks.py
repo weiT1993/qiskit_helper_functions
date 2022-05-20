@@ -84,10 +84,11 @@ def generate_circ(num_qubits,depth,circuit_type,reg_name,connected_only,seed):
             full_circ = library.QFT(num_qubits=num_qubits,approximation_degree=num_qubits-approximation_degree,do_swaps=False).decompose()
         elif circuit_type == 'adder':
             full_circ = gen_adder(nbits=int((num_qubits-2)/2),barriers=False,regname=reg_name)
-        elif circuit_type=='regular' and 3*num_qubits%2==0:
-            graph = nx.random_regular_graph(3, num_qubits)
-            full_circ = construct_qaoa_plus(P=depth,G=graph,
-                    params=[np.random.uniform(-np.pi,np.pi) for _ in range(2*depth)],reg_name=reg_name)
+        elif circuit_type=='regular':
+            if 3*num_qubits%2==0:
+                graph = nx.random_regular_graph(3, num_qubits)
+                full_circ = construct_qaoa_plus(P=depth,G=graph,
+                        params=[np.random.uniform(-np.pi,np.pi) for _ in range(2*depth)],reg_name=reg_name)
         elif circuit_type=='erdos':
             graph = nx.generators.random_graphs.erdos_renyi_graph(num_qubits, density)
             full_circ = construct_qaoa_plus(P=depth,G=graph,
