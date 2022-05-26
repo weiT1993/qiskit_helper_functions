@@ -99,9 +99,10 @@ def generate_circ(num_qubits,depth,circuit_type,reg_name,connected_only,seed):
         else:
             raise Exception('Illegal circuit type:',circuit_type)
         
-        if full_circ is not None:
-            if not connected_only or (connected_only and full_circ.num_tensor_factors()==1):
-                break
+        if full_circ is not None and full_circ.num_tensor_factors()==1:
+            break
+        elif full_circ is not None and not connected_only:
+            break
         else:
             full_circ = None
             num_trials -= 1

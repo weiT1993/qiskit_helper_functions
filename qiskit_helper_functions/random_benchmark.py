@@ -9,7 +9,7 @@ class RandomCircuit(object):
         Generate a random benchmark circuit
         width: number of qubits
         depth: depth of the random circuit
-        connection_degree: decay rate of number of direct contacts
+        connection_degree: max number of direct contacts
         num_hadamards: number of H gates in the encoding layer. Overall number of solutions = 2^num_H
         '''
         super().__init__()
@@ -17,13 +17,13 @@ class RandomCircuit(object):
         self.width = width
         self.depth = depth
         self.num_hadamards = num_hadamards
-        # Decay rate of #targets
-        self.num_targets_ubs = [self.width-1]
-        for qubit in range(1,width):
-            max_num_targets = connection_degree * self.num_targets_ubs[-1]
-            max_num_targets = min(max_num_targets,self.width-1-qubit)
-            max_num_targets = int(max_num_targets)
-            self.num_targets_ubs.append(max_num_targets)
+        self.num_targets_ubs = []
+        for qubit in range(width):
+            max_num_targets = self.width-1-qubit
+            num_targets_ub = int(connection_degree * max_num_targets)
+            if qubit<width-1:
+                num_targets_ub = max(num_targets_ub,1)
+            self.num_targets_ubs.append(num_targets_ub)
         # print('num_targets_ubs = {}'.format(self.num_targets_ubs))
     
     def generate(self):
