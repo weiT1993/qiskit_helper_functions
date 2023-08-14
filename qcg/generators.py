@@ -6,6 +6,7 @@ from .QWalk import quantum_walk
 from .Dynamics import quantum_dynamics
 from .BernsteinVazirani import bernstein_vazirani
 from .Arithmetic import ripple_carry_adder
+import logging
 
 
 def gen_supremacy(
@@ -88,7 +89,6 @@ def gen_hwea(
     ansatz with the given width (number of qubits) and
     depth (number of repetitions of the basic ansatz).
     """
-
     hwea = hw_efficient_ansatz.HWEA(
         width,
         depth,

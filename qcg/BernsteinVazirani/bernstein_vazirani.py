@@ -26,7 +26,6 @@ class BV:
     """
 
     def __init__(self, secret=None, barriers=True, measure=False, regname=None):
-
         if secret is None:
             raise Exception(
                 "Provide a secret bitstring for the Bernstein-Vazirani circuit, example: 001101"

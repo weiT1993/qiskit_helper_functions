@@ -147,7 +147,9 @@ class Qgrid:
             Exception("ERROR: unrecognized gate: {}".format(gate))
 
     def gen_circuit(self):
-        print("Generating {}x{}, {}+1 supremacy circuit".format(self.n, self.m, self.d))
+        """
+        Generate n*m depth d+1 Sycamore circuit
+        """
 
         # Iterate through d layers
         for i in range(self.d):

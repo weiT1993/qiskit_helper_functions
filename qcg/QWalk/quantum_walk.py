@@ -29,7 +29,6 @@ class QWALK:
     """
 
     def __init__(self, N, barriers=False, regname=None):
-
         # number of vertices
         self.N = N
 

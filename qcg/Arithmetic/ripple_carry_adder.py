@@ -61,7 +61,6 @@ class RCAdder:
         measure=False,
         regname=None,
     ):
-
         # number of bits the adder can handle
         if nbits is None:
             raise Exception("Number of bits must be specified")

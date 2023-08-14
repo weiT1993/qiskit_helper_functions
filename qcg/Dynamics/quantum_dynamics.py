@@ -31,7 +31,6 @@ class Dynamics:
     """
 
     def __init__(self, H, barriers=False, measure=False, regname=None):
-
         # Hamiltonian
         self.H = H
 

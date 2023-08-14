@@ -62,7 +62,6 @@ class UCCSD:
     def __init__(
         self, width, parameters="random", seed=None, barriers=False, regname=None
     ):
-
         # number of qubits
         self.nq = width
 
@@ -169,7 +168,6 @@ class UCCSD:
         qr = self.circ.qregs[0]
 
         for i in range(1, 9):
-
             if self.barriers:
                 self.circ.barrier(qr)
 
@@ -255,7 +253,6 @@ class UCCSD:
         numparam = int(num_dbl + num_sgl)
 
         if self.parameters == "random":
-
             param = np.random.uniform(-np.pi, np.pi, numparam)
 
         elif self.parameters == "seeded":
