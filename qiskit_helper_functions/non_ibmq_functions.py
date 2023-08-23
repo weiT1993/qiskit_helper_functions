@@ -43,19 +43,6 @@ def apply_measurement(circuit, qubits):
     return measured_circuit
 
 
-def find_process_jobs(jobs, rank, num_workers):
-    count = int(len(jobs) / num_workers)
-    remainder = len(jobs) % num_workers
-    if rank < remainder:
-        jobs_start = rank * (count + 1)
-        jobs_stop = jobs_start + count + 1
-    else:
-        jobs_start = rank * count + remainder
-        jobs_stop = jobs_start + (count - 1) + 1
-    process_jobs = list(jobs[jobs_start:jobs_stop])
-    return process_jobs
-
-
 def evaluate_circ(circuit, backend, options=None):
     circuit = copy.deepcopy(circuit)
     max_memory_mb = psutil.virtual_memory().total >> 20

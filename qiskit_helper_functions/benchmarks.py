@@ -158,7 +158,7 @@ def generate_circuit(
             )
             if connected_only:
                 density_delta = 0.001
-                lo = density_delta
+                lo = 0
                 hi = 1
                 while lo < hi:
                     mid = (lo + hi) / 2
@@ -181,6 +181,8 @@ def generate_circuit(
             circuit = w_state(num_qubits=num_qubits)
         case "random":
             circuit = construct_random(num_qubits=num_qubits, depth=depth)
+        case "bv":
+            circuit = gen_BV(gen_secret(num_qubits), barriers=False, regname="q")
         case _:
             raise Exception("{:s} is not implemented".format(circuit_type))
     if connected_only and circuit.num_tensor_factors() != 1:
