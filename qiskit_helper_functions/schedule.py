@@ -1,16 +1,11 @@
-"""
-Job submission/simulating backend
-Input:
-circ_dict (dict): circ (not transpiled), shots, evaluator_info (optional)
-"""
-
-import math, copy, random, pickle
+import math, copy, random, pickle, logging
 import numpy as np
 from qiskit.compiler import transpile, assemble
 from qiskit import Aer, execute
-from qiskit.providers.aer import QasmSimulator
+from typing import Dict, Any
 from time import time
 from datetime import datetime
+from qiskit_ibm_runtime import QiskitRuntimeService
 
 from qiskit_helper_functions.non_ibmq_functions import apply_measurement
 from qiskit_helper_functions.ibmq_functions import get_device_info
@@ -43,32 +38,65 @@ class ScheduleItem:
 
 
 class Scheduler:
-    # TODO: rewrite the interface
-    def __init__(self, circ_dict, verbose):
-        self.verbose = verbose
-        self.circ_dict = circ_dict
+    """
+    IBM job submission/simulating backend
+    Compile as many circuits as possible into a single IBM job
+    """
+
+    def __init__(self, circuits: Dict[str, Any]):
+        """
+        Input:
+        circuits[circuit_name]: circuit (not transpiled), shots
+        """
+        self.circuits = circuits
         self.jobs = {}
         self.ibmq_schedules = {}
 
-    def add_ibmq(self, token, hub, group, project):
+    def add_ibm_account(self, token: str, instance: str):
         """
         Have to run this function first before submitting jobs to IBMQ or using noisy simulations
+
+        from qiskit_ibm_provider import IBMProvider
+        # Save your credentials on disk.
+        # IBMProvider.save_account(token='<IBM Quantum API key>')
+        provider = IBMProvider(instance='ibm-q-bnl/c2qa-projects/tang-quantum-dev')
         """
         self.token = token
-        self.hub = hub
-        self.group = group
-        self.project = project
+        self.instance = instance
 
-    def submit_ibmq_jobs(self, device_names, transpilation, real_device):
+    def submit_ibm_jobs(
+        self, device_selection_mode: str, transpilation: bool, real_device: bool
+    ):
+        """
+        Submit the circuits to IBM devices.
+        Two available device selection modes:
+        - "least_busy": choose the least busy devices
+        - "best": choose the highest average fidelity devices
+
+        transpilation: whether to transpile the circuits or run as is
+        real_device: whether to run on real device or simulation
+        """
+        QiskitRuntimeService.save_account(
+            channel="ibm_quantum", token=self.token, overwrite=True
+        )
+        service = QiskitRuntimeService()
+        for backend in service.backends():
+            logging.debug(backend)
+        for circuit_name in self.circuits:
+            logging.debug(
+                "{:s} {}".format(circuit_name, self.circuits[circuit_name].keys())
+            )
+            remaining_shots = self.circuits[circuit_name]["shots"]
+            num_qubits = self.circuits[circuit_name]["circuit"].num_qubits
+            # while remaining_shots>0:
+            #     if device_selection_mode=="least_busy":
+
+        exit(1)
         self.device_names = device_names
         for device_name in device_names:
-            if self.verbose:
-                print(
-                    "-->",
-                    "IBMQ Scheduler : Submitting %s Jobs" % device_name,
-                    "<--",
-                    flush=True,
-                )
+            logging.info(
+                "--> IBM Scheduler : Submitting %s Jobs <--" % device_name,
+            )
 
             today = datetime.now()
             device_info = get_device_info(

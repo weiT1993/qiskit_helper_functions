@@ -3,7 +3,6 @@ import warnings
 warnings.filterwarnings("ignore")
 import random, pickle, os, copy, random
 from qiskit import QuantumCircuit
-from qiskit.providers import aer
 from qiskit.converters import circuit_to_dag, dag_to_circuit
 from qiskit.dagcircuit.dagcircuit import DAGCircuit
 from qiskit.quantum_info import Statevector
