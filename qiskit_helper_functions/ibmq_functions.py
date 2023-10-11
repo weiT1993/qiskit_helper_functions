@@ -3,19 +3,34 @@ from qiskit.providers.jobstatus import JobStatus
 from qiskit.transpiler import CouplingMap
 from datetime import timedelta, datetime
 from pytz import timezone
-import time
-import subprocess
-import os
-import pickle
+import time, subprocess, os, pickle, logging
+from qiskit_ibm_provider import IBMBackend
+from typing import List
+import numpy as np
 
 from qiskit_helper_functions.non_ibmq_functions import read_dict
 
 
-def load_IBMQ(token, hub, group, project):
-    IBMQ.save_account(token, overwrite=True)
-    IBMQ.load_account()
-    provider = IBMQ.get_provider(hub=hub, group=group, project=project)
-    return provider
+def best_qpu(backends: List[IBMBackend]) -> IBMBackend:
+    """
+    Return the QPU with the smallest average gate error
+    """
+    backend_average_errors = []
+    for backend in backends:
+        properties = backend.properties(refresh=True).to_dict()
+        backend_gate_errors = []
+        for gate in properties["gates"]:
+            for parameter in gate["parameters"]:
+                if parameter["name"] == "gate_error":
+                    backend_gate_errors.append(parameter["value"])
+        backend_average_errors.append(np.mean(backend_gate_errors))
+    best_backend = backends[
+        min(
+            range(len(backends)),
+            key=lambda backend_index: backend_average_errors[backend_index],
+        )
+    ]
+    return best_backend
 
 
 def get_device_info(token, hub, group, project, device_name, fields, datetime):
