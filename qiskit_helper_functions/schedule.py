@@ -1,41 +1,69 @@
 import math, copy, random, pickle, logging
 import numpy as np
 from qiskit.compiler import transpile, assemble
-from qiskit import Aer, execute
+from qiskit import Aer, execute, QuantumCircuit
 from typing import Dict, Any
 from time import time
 from datetime import datetime
-from qiskit_ibm_runtime import QiskitRuntimeService
-from qiskit_ibm_provider import least_busy
+from qiskit_ibm_runtime import QiskitRuntimeService, Options, Sampler, RuntimeJob
+from qiskit_ibm_provider import least_busy, IBMBackend
 
 from qiskit_helper_functions.non_ibmq_functions import apply_measurement
 from qiskit_helper_functions.ibmq_functions import get_device_info, best_qpu
 from qiskit_helper_functions.conversions import dict_to_array, memory_to_dict
 
 
-class ScheduleItem:
-    def __init__(self, max_experiments, max_shots):
-        self.max_experiments = max_experiments
-        self.max_shots = max_shots
-        self.circ_list = []
-        self.shots = 0
-        self.total_circs = 0
+class JobItem:
+    def __init__(self, backend: IBMBackend) -> None:
+        """
+        One IBM job.
+        max_circuits: max number of circuits allowed in a job
+        max_shots: max number of shots per circuit allowed in a job
+        """
+        self.backend = backend
+        self.backend_name = backend.name
+        self.max_circuits = backend.max_circuits
+        self.max_shots = backend.max_shots
+        self.job_shots = 0
+        self.circuit_names = []
+        self.circuits = []
 
-    def update(self, key, circ, shots):
-        reps_vacant = self.max_experiments - self.total_circs
-        if reps_vacant > 0:
-            circ_shots = max(shots, self.shots)
-            circ_shots = min(circ_shots, self.max_shots)
-            total_reps = math.ceil(shots / circ_shots)
-            reps_to_add = min(total_reps, reps_vacant)
-            circ_list_item = {"key": key, "circ": circ, "reps": reps_to_add}
-            self.circ_list.append(circ_list_item)
-            self.shots = circ_shots
-            self.total_circs += reps_to_add
-            shots_remaining = shots - reps_to_add * self.shots
+    def add_circuit(
+        self, circuit_name: str, circuit: QuantumCircuit, shots: int
+    ) -> int:
+        """
+        Add a circuit to the job.
+        Return the remaining shots for the circuit not added into the current job.
+        """
+        num_vacant_slots = self.max_circuits - len(self.circuits)
+        if num_vacant_slots > 0:
+            circuit_shots = max(shots, self.job_shots)
+            circuit_shots = min(circuit_shots, self.max_shots)
+            num_slots = math.ceil(shots / circuit_shots)
+            slots_to_add = min(num_slots, num_vacant_slots)
+            self.circuits += [circuit] * slots_to_add
+            self.circuit_names += [circuit_name] * slots_to_add
+            self.job_shots = circuit_shots
+            remaining_shots = shots - slots_to_add * self.job_shots
         else:
-            shots_remaining = shots
-        return shots_remaining
+            remaining_shots = shots
+        return remaining_shots
+
+    def is_full(self) -> bool:
+        """
+        Return True if the job cannot hold more circuits
+        """
+        return len(self.circuits) == self.max_circuits
+
+    def submit(self) -> RuntimeJob:
+        """
+        Submit the job
+        """
+        raise Exception("Ready to submit")
+        service = QiskitRuntimeService()
+        sampler = Sampler(backend=service.backend("ibmq_qasm_simulator"))
+        job = sampler.run(circuits=self.circuits, shots=self.job_shots)
+        return job
 
 
 class Scheduler:
@@ -50,8 +78,6 @@ class Scheduler:
         circuits[circuit_name]: circuit (not transpiled), shots
         """
         self.circuits = circuits
-        self.jobs = {}
-        self.ibmq_schedules = {}
 
     def add_ibm_account(self, token: str, instance: str):
         """
@@ -80,110 +106,104 @@ class Scheduler:
         transpilation: whether to transpile the circuits or run as is
         real_device: whether to run on real device or simulation
         """
+        logging.info(
+            "--> IBM Scheduler : Submitting Jobs <--",
+        )
         service = QiskitRuntimeService()
+        jobs = {}
+        if device_selection_mode == "least_busy":
+            selection_function = least_busy
+        elif device_selection_mode == "best":
+            selection_function = best_qpu
+        else:
+            raise Exception(
+                "Illegal device_selection_mode {}".format(device_selection_mode)
+            )
+
         for circuit_name in self.circuits:
-            logging.debug(
-                "{:s} {}".format(circuit_name, self.circuits[circuit_name].keys())
+            backend_candidates = service.backends(
+                min_num_qubits=self.circuits[circuit_name]["circuit"].num_qubits,
+                simulator=False,
+                operational=True,
             )
             remaining_shots = self.circuits[circuit_name]["shots"]
-            num_qubits = self.circuits[circuit_name]["circuit"].num_qubits
-            backends = service.backends(
-                min_num_qubits=num_qubits, simulator=False, operational=True
-            )
-            if device_selection_mode == "least_busy":
-                backend = least_busy(backends)
-            elif device_selection_mode == "best":
-                backend = best_qpu(backends)
-            else:
-                raise Exception(
-                    "Illegal device_selection_mode {}".format(device_selection_mode)
+            logging.debug("{:s} {:d} shots".format(circuit_name, remaining_shots))
+            while remaining_shots > 0:
+                backend = selection_function(backend_candidates)
+                if backend.name not in jobs:
+                    jobs[backend.name] = []
+                if len(jobs[backend.name]) == 0 or jobs[backend.name][-1].is_full():
+                    jobs[backend.name].append(JobItem(backend))
+                remaining_shots = jobs[backend.name][-1].add_circuit(
+                    circuit_name=circuit_name,
+                    circuit=self.circuits[circuit_name]["circuit"],
+                    shots=remaining_shots,
                 )
-            logging.debug("Selected {}".format(backend))
-            # while remaining_shots>0:
-            #     if device_selection_mode=="least_busy":
-            exit(1)
-        self.device_names = device_names
-        for device_name in device_names:
-            logging.info(
-                "--> IBM Scheduler : Submitting %s Jobs <--" % device_name,
-            )
+                if jobs[backend.name][-1].is_full():
+                    jobs[backend.name][-1].submit()
+        for backend_name in jobs:
+            logging.debug(backend_name)
+            for job in jobs[backend_name]:
+                logging.debug("{:d} shots: {}".format(job.job_shots, job.circuit_names))
+        exit(1)
 
-            today = datetime.now()
-            device_info = get_device_info(
-                token=self.token,
-                hub=self.hub,
-                group=self.group,
-                project=self.project,
-                device_name=device_name,
-                fields=[
-                    "device",
-                    "properties",
-                    "basis_gates",
-                    "coupling_map",
-                    "noise_model",
-                ],
-                datetime=today,
-            )
-            device_size = len(device_info["properties"].qubits)
-            self._check_input(device_size=device_size)
+        self.ibmq_schedules[device_name] = self._get_ibmq_schedule(
+            device_max_shots=device_info["device"].configuration().max_shots,
+            device_max_experiments=device_info["device"]
+            .configuration()
+            .max_experiments,
+        )
 
-            self.ibmq_schedules[device_name] = self._get_ibmq_schedule(
-                device_max_shots=device_info["device"].configuration().max_shots,
-                device_max_experiments=device_info["device"]
-                .configuration()
-                .max_experiments,
-            )
+        jobs = []
+        for idx, schedule_item in enumerate(self.ibmq_schedules[device_name]):
+            job_circuits = []
+            for element in schedule_item.circ_list:
+                key = element["key"]
+                circ = element["circ"]
+                reps = element["reps"]
+                # print('Key {}, {:d} qubit circuit * {:d} reps'.format(key,len(circ.qubits),reps))
 
-            jobs = []
-            for idx, schedule_item in enumerate(self.ibmq_schedules[device_name]):
-                job_circuits = []
-                for element in schedule_item.circ_list:
-                    key = element["key"]
-                    circ = element["circ"]
-                    reps = element["reps"]
-                    # print('Key {}, {:d} qubit circuit * {:d} reps'.format(key,len(circ.qubits),reps))
-
-                    if circ.num_clbits == 0:
-                        qc = apply_measurement(circuit=circ, qubits=circ.qubits)
-                    else:
-                        qc = circ
-
-                    if transpilation:
-                        mapped_circuit = transpile(qc, backend=device_info["device"])
-                    else:
-                        mapped_circuit = qc
-
-                    self.circ_dict[key]["%s_circuit" % device_name] = mapped_circuit
-
-                    circs_to_add = [mapped_circuit] * reps
-                    job_circuits += circs_to_add
-
-                assert len(job_circuits) == schedule_item.total_circs
-
-                qobj = assemble(
-                    job_circuits,
-                    backend=device_info["device"],
-                    shots=schedule_item.shots,
-                    memory=True,
-                )
-                if real_device:
-                    ibmq_job = device_info["device"].run(qobj)
+                if circ.num_clbits == 0:
+                    qc = apply_measurement(circuit=circ, qubits=circ.qubits)
                 else:
-                    ibmq_job = Aer.get_backend("qasm_simulator").run(qobj)
-                jobs.append(ibmq_job)
-                if self.verbose:
-                    print(
-                        "Submitting job {:d}/{:d} {} --> {:d} distinct circuits, {:d} * {:d} shots".format(
-                            idx + 1,
-                            len(self.ibmq_schedules[device_name]),
-                            ibmq_job.job_id(),
-                            len(schedule_item.circ_list),
-                            len(job_circuits),
-                            schedule_item.shots,
-                        ),
-                        flush=True,
-                    )
-            self.jobs[device_name] = jobs
+                    qc = circ
+
+                if transpilation:
+                    mapped_circuit = transpile(qc, backend=device_info["device"])
+                else:
+                    mapped_circuit = qc
+
+                self.circ_dict[key]["%s_circuit" % device_name] = mapped_circuit
+
+                circs_to_add = [mapped_circuit] * reps
+                job_circuits += circs_to_add
+
+            assert len(job_circuits) == schedule_item.total_circs
+
+            qobj = assemble(
+                job_circuits,
+                backend=device_info["device"],
+                shots=schedule_item.shots,
+                memory=True,
+            )
+            if real_device:
+                ibmq_job = device_info["device"].run(qobj)
+            else:
+                ibmq_job = Aer.get_backend("qasm_simulator").run(qobj)
+            jobs.append(ibmq_job)
+            if self.verbose:
+                print(
+                    "Submitting job {:d}/{:d} {} --> {:d} distinct circuits, {:d} * {:d} shots".format(
+                        idx + 1,
+                        len(self.ibmq_schedules[device_name]),
+                        ibmq_job.job_id(),
+                        len(schedule_item.circ_list),
+                        len(job_circuits),
+                        schedule_item.shots,
+                    ),
+                    flush=True,
+                )
+        self.jobs[device_name] = jobs
 
     def retrieve_jobs(self, force_prob, save_memory, save_directory):
         for device_name in self.device_names:
@@ -358,29 +378,3 @@ class Scheduler:
                         key, value["circuit"].num_qubits, device_size
                     )
                 )
-
-    def _get_ibmq_schedule(self, device_max_shots, device_max_experiments):
-        circ_dict = copy.deepcopy(self.circ_dict)
-        ibmq_schedule = []
-        schedule_item = ScheduleItem(
-            max_experiments=device_max_experiments, max_shots=device_max_shots
-        )
-        key_idx = 0
-        while key_idx < len(circ_dict):
-            key = list(circ_dict.keys())[key_idx]
-            circ = circ_dict[key]["circuit"]
-            shots = circ_dict[key]["shots"]
-            # print('adding %d qubit circuit with %d shots to job'%(len(circ.qubits),shots))
-            shots_remaining = schedule_item.update(key, circ, shots)
-            if shots_remaining > 0:
-                ibmq_schedule.append(schedule_item)
-                schedule_item = ScheduleItem(
-                    max_experiments=device_max_experiments, max_shots=device_max_shots
-                )
-                circ_dict[key]["shots"] = shots_remaining
-            else:
-                circ_dict[key]["shots"] = shots_remaining
-                key_idx += 1
-        if schedule_item.total_circs > 0:
-            ibmq_schedule.append(schedule_item)
-        return ibmq_schedule
