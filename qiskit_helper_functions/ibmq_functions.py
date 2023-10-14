@@ -5,72 +5,37 @@ from datetime import timedelta, datetime
 from pytz import timezone
 import time, subprocess, os, pickle, logging
 from qiskit_ibm_provider import IBMBackend
-from typing import List
+from typing import List, Dict
 import numpy as np
 
 from qiskit_helper_functions.non_ibmq_functions import read_dict
 
 
-def best_qpu(backends: List[IBMBackend]) -> IBMBackend:
+def get_backend_info(backends: List[IBMBackend]) -> Dict:
     """
-    Return the QPU with the smallest average gate error
+    Get the IBM device information:
+    - Number of qubits
+    - Average gate error
+    - Current number of pending jobs
     """
-    backend_average_errors = []
+    backend_info = {}
     for backend in backends:
-        properties = backend.properties(refresh=True).to_dict()
-        backend_gate_errors = []
-        for gate in properties["gates"]:
-            for parameter in gate["parameters"]:
-                if parameter["name"] == "gate_error":
-                    backend_gate_errors.append(parameter["value"])
-        backend_average_errors.append(np.mean(backend_gate_errors))
-    best_backend = backends[
-        min(
-            range(len(backends)),
-            key=lambda backend_index: backend_average_errors[backend_index],
-        )
-    ]
-    return best_backend
-
-
-def get_device_info(token, hub, group, project, device_name, fields, datetime):
-    dirname = "./devices/%s" % datetime.date()
-    filename = "%s/%s.pckl" % (dirname, device_name)
-    _device_info = read_dict(filename=filename)
-    if len(_device_info) == 0:
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
+        if backend.simulator:
+            average_gate_error = 0
         else:
-            subprocess.run(["rm", "-r", dirname])
-            os.makedirs(dirname)
-        provider = load_IBMQ(token=token, hub=hub, group=group, project=project)
-        for x in provider.backends():
-            if "simulator" not in str(x):
-                device = provider.get_backend(str(x))
-                properties = device.properties(datetime=datetime)
-                num_qubits = device.configuration().n_qubits
-                print("Download device_info for %d-qubit %s" % (num_qubits, x))
-                coupling_map = CouplingMap(device.configuration().coupling_map)
-                noise_model = NoiseModel.from_backend(device)
-                basis_gates = device.configuration().basis_gates
-                _device_info = {
-                    "properties": properties,
-                    "coupling_map": coupling_map,
-                    "noise_model": noise_model,
-                    "basis_gates": basis_gates,
-                }
-                pickle.dump(_device_info, open("%s/%s.pckl" % (dirname, str(x)), "wb"))
-            print("-" * 50)
-        _device_info = read_dict(filename=filename)
-    device_info = {}
-    for field in fields:
-        if field == "device":
-            provider = load_IBMQ(token=token, hub=hub, group=group, project=project)
-            device = provider.get_backend(device_name)
-            device_info[field] = device
-        else:
-            device_info[field] = _device_info[field]
-    return device_info, filename
+            properties = backend.properties(refresh=True).to_dict()
+            backend_gate_errors = []
+            for gate in properties["gates"]:
+                for parameter in gate["parameters"]:
+                    if parameter["name"] == "gate_error":
+                        backend_gate_errors.append(parameter["value"])
+            average_gate_error = np.mean(backend_gate_errors)
+        backend_info[backend] = {
+            "num_qubits": backend.num_qubits,
+            "average_gate_error": average_gate_error,
+            "num_pending_jobs": backend.status().pending_jobs,
+        }
+    return backend_info
 
 
 def check_jobs(token, hub, group, project, cancel_jobs):
