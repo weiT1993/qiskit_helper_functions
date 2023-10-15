@@ -1,4 +1,6 @@
 import numpy as np
+import logging
+from qiskit.result import QuasiDistribution
 
 
 def reverseBits(num, bitSize):
@@ -32,6 +34,16 @@ def list_to_dict(l):
             )
         )
     return l_dict
+
+
+def quasi_dist_to_array(quasi_dist: QuasiDistribution, num_qubits: int) -> np.ndarray:
+    """
+    Convert a quasi distribution to np array
+    """
+    quasi_arr = np.zeros(2**num_qubits, dtype=float)
+    for state in quasi_dist:
+        quasi_arr[state] = quasi_dist[state]
+    return quasi_arr
 
 
 def dict_to_array(distribution_dict, force_prob):

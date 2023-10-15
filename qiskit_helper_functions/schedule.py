@@ -8,9 +8,10 @@ from datetime import datetime
 from qiskit_ibm_runtime import QiskitRuntimeService, Options, Sampler, RuntimeJob
 from qiskit_ibm_provider import least_busy, IBMBackend
 
-from qiskit_helper_functions.non_ibmq_functions import apply_measurement
 from qiskit_helper_functions.ibmq_functions import get_backend_info
-from qiskit_helper_functions.conversions import dict_to_array, memory_to_dict
+from qiskit_helper_functions.conversions import (
+    quasi_dist_to_array,
+)
 
 
 class JobItem:
@@ -57,9 +58,16 @@ class JobItem:
     def submit(self) -> None:
         """
         Submit the job and save job ID
+        - optimization_level=3 adds dynamical decoupling
+        - resilience_level=1 adds readout error mitigation
         """
         sampler = Sampler(backend=self.backend)  # type: ignore
-        job = sampler.run(circuits=self.circuits, shots=self.job_shots)
+        job = sampler.run(
+            circuits=self.circuits,
+            shots=self.job_shots,
+            optimization_level=3,
+            resilience_level=1,
+        )
         logging.info(
             "Submit job {} to {:s} --> {:d} distinct circuits. {:d} total circuits. {:d} shots each.".format(
                 job.job_id(),
@@ -70,6 +78,29 @@ class JobItem:
             )
         )
         self.job_id = job.job_id()
+
+    def retrieve(self, service: QiskitRuntimeService) -> None:
+        """
+        Retrieve the job results
+        Compile results from the same circuit names
+        """
+        quasi_arrays = {}
+        job_result = service.job(self.job_id).result()
+        for circuit_name, circuit, circuit_quasi_dist in zip(
+            self.circuit_names, self.circuits, job_result.quasi_dists
+        ):
+            circuit_quasi_array = quasi_dist_to_array(
+                quasi_dist=circuit_quasi_dist, num_qubits=circuit.num_qubits
+            )
+            if circuit_name in quasi_arrays:
+                quasi_arrays[circuit_name] += circuit_quasi_array
+            else:
+                quasi_arrays[circuit_name] = circuit_quasi_array
+        self.circuit_results = {}
+        for circuit_name in quasi_arrays:
+            self.circuit_results[circuit_name] = quasi_arrays[circuit_name] / np.sum(
+                quasi_arrays[circuit_name]
+            )
 
 
 class Scheduler:
@@ -166,84 +197,13 @@ class Scheduler:
                 job_item.submit()
         self.jobs = jobs
 
-    def retrieve_jobs(self, force_prob, save_memory, save_directory):
-        for device_name in self.device_names:
-            if self.verbose:
-                print("-->", "IBMQ Scheduler : Retrieving %s Jobs" % device_name, "<--")
-            jobs = self.jobs[device_name]
-            assert len(self.ibmq_schedules[device_name]) == len(jobs)
-            memories = {}
-            for job_idx in range(len(jobs)):
-                schedule_item = self.ibmq_schedules[device_name][job_idx]
-                hw_job = jobs[job_idx]
-                if self.verbose:
-                    print(
-                        "Retrieving job {:d}/{:d} {} --> {:d} circuits, {:d} * {:d} shots".format(
-                            job_idx + 1,
-                            len(jobs),
-                            hw_job.job_id(),
-                            len(schedule_item.circ_list),
-                            schedule_item.total_circs,
-                            schedule_item.shots,
-                        ),
-                        flush=True,
-                    )
-                ibmq_result = hw_job.result()
-                start_idx = 0
-                for element_ctr, element in enumerate(schedule_item.circ_list):
-                    key = element["key"]
-                    circ = element["circ"]
-                    reps = element["reps"]
-                    end_idx = start_idx + reps
-                    # print('{:d}: getting {:d}-{:d}/{:d} circuits, key {} : {:d} qubit'.format(element_ctr,start_idx,end_idx-1,schedule_item.total_circs-1,key,len(circ.qubits)),flush=True)
-                    for result_idx in range(start_idx, end_idx):
-                        ibmq_memory = ibmq_result.get_memory(result_idx)
-                        if key in memories:
-                            memories[key] += ibmq_memory
-                        else:
-                            memories[key] = ibmq_memory
-                    start_idx = end_idx
-
-            process_begin = time()
-            counter = 0
-            log_counter = 0
-            for key in self.circ_dict:
-                iteration_begin = time()
-                full_circ = self.circ_dict[key]["circuit"]
-                shots = self.circ_dict[key]["shots"]
-                ibmq_memory = memories[key][:shots]
-                mem_dict = memory_to_dict(memory=ibmq_memory)
-                hw_prob = dict_to_array(
-                    distribution_dict=mem_dict, force_prob=force_prob
-                )
-                self.circ_dict[key]["%s|hw" % device_name] = copy.deepcopy(hw_prob)
-                if save_memory:
-                    self.circ_dict[key]["%s_memory" % device_name] = copy.deepcopy(
-                        ibmq_memory
-                    )
-                # print('Key {} has {:d} qubit circuit, hw has {:d}/{:d} shots'.format(key,len(full_circ.qubits),sum(hw.values()),shots))
-                # print('Expecting {:d} shots, got {:d} shots'.format(shots,sum(mem_dict.values())),flush=True)
-                if len(full_circ.clbits) > 0:
-                    assert len(self.circ_dict[key]["%s|hw" % device_name]) == 2 ** len(
-                        full_circ.clbits
-                    )
-                else:
-                    assert len(self.circ_dict[key]["%s|hw" % device_name]) == 2 ** len(
-                        full_circ.qubits
-                    )
-                if save_directory is not None:
-                    pickle.dump(
-                        self.circ_dict[key],
-                        open("%s/%s.pckl" % (save_directory, key), "wb"),
-                    )
-                counter += 1
-                log_counter += time() - iteration_begin
-                if log_counter > 60 and self.verbose:
-                    elapsed = time() - process_begin
-                    eta = elapsed / counter * len(self.circ_dict) - elapsed
-                    print(
-                        "Processed %d/%d circuits, elapsed = %.3e, ETA = %.3e"
-                        % (counter, len(self.circ_dict), elapsed, eta),
-                        flush=True,
-                    )
-                    log_counter = 0
+    def retrieve_ibm_jobs(
+        self,
+    ):
+        """
+        Retrieve IBM jobs
+        """
+        service = QiskitRuntimeService()
+        for backend_name in self.jobs:
+            for job_item in self.jobs[backend_name]:
+                job_item.retrieve(service)
