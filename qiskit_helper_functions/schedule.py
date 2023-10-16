@@ -1,12 +1,9 @@
 import math, copy, random, pickle, logging
 import numpy as np
-from qiskit.compiler import transpile, assemble
 from qiskit import Aer, execute, QuantumCircuit
 from typing import Dict, Any
-from time import time
-from datetime import datetime
 from qiskit_ibm_runtime import QiskitRuntimeService, Options, Sampler, RuntimeJob
-from qiskit_ibm_provider import least_busy, IBMBackend
+from qiskit_ibm_provider import IBMBackend
 
 from qiskit_helper_functions.ibmq_functions import get_backend_info
 from qiskit_helper_functions.conversions import (
@@ -98,8 +95,10 @@ class JobItem:
                 quasi_arrays[circuit_name] = circuit_quasi_array
         self.circuit_results = {}
         for circuit_name in quasi_arrays:
-            self.circuit_results[circuit_name] = quasi_arrays[circuit_name] / np.sum(
+            self.circuit_results[circuit_name] = (
                 quasi_arrays[circuit_name]
+                / np.sum(quasi_arrays[circuit_name])
+                * self.job_shots
             )
 
 
