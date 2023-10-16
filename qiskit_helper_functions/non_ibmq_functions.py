@@ -2,7 +2,7 @@ import warnings
 
 warnings.filterwarnings("ignore")
 import random, pickle, os, copy, random
-from qiskit import QuantumCircuit
+from qiskit import QuantumCircuit, Aer
 from qiskit.converters import circuit_to_dag, dag_to_circuit
 from qiskit.dagcircuit.dagcircuit import DAGCircuit
 from qiskit.quantum_info import Statevector
@@ -47,13 +47,13 @@ def evaluate_circ(circuit, backend, options=None):
     max_memory_mb = psutil.virtual_memory().total >> 20
     max_memory_mb = int(max_memory_mb / 4 * 3)
     if backend == "statevector_simulator":
-        simulator = aer.Aer.get_backend("statevector_simulator")
+        simulator = Aer.get_backend("statevector_simulator")
         result = simulator.run(circuit).result()
         statevector = result.get_statevector(circuit)
         prob_vector = Statevector(statevector).probabilities()
         return prob_vector
     elif backend == "noiseless_qasm_simulator":
-        simulator = aer.Aer.get_backend("aer_simulator", max_memory_mb=max_memory_mb)
+        simulator = Aer.get_backend("aer_simulator", max_memory_mb=max_memory_mb)
         if isinstance(options, dict) and "num_shots" in options:
             num_shots = options["num_shots"]
         else:

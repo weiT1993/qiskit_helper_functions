@@ -155,7 +155,7 @@ class Scheduler:
         if real_device:
             backends = service.backends(simulator=False, operational=True)
         else:
-            backends = [service.backend("ibmq_qasm_simulator")]
+            backends = [service.backend("simulator_statevector")]
         backend_info = get_backend_info(backends)  # type: ignore
         if backend_selection_mode == "least_busy":
             selection_function = lambda backend: backend_info[backend][
@@ -199,7 +199,7 @@ class Scheduler:
 
     def retrieve_ibm_jobs(
         self,
-    ):
+    ) -> None:
         """
         Retrieve IBM jobs
         """
@@ -207,3 +207,16 @@ class Scheduler:
         for backend_name in self.jobs:
             for job_item in self.jobs[backend_name]:
                 job_item.retrieve(service)
+                for circuit_name in job_item.circuit_results:
+                    if "output" not in self.circuits[circuit_name]:
+                        self.circuits[circuit_name][
+                            "output"
+                        ] = job_item.circuit_results[circuit_name]
+                    else:
+                        self.circuits[circuit_name][
+                            "output"
+                        ] += job_item.circuit_results[circuit_name]
+        for circuit_name in self.circuits:
+            self.circuits[circuit_name]["output"] = self.circuits[circuit_name][
+                "output"
+            ] / np.sum(self.circuits[circuit_name]["output"])
